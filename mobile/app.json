@@ -1,0 +1,28 @@
+{
+  "expo": {
+    "name": "Vakshesa",
+    "slug": "vakshesa-event",
+    "version": "1.0.0",
+    "assetBundlePatterns": ["**/*"],
+    "ios": {
+      "supportsTabletMode": true
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#ffffff"
+      }
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow Vksha to access your camera to scan QR codes."
+        }
+      ]
+    ]
+  }
+}
