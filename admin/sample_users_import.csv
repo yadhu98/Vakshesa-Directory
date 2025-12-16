@@ -1,0 +1,9 @@
+firstName,lastName,email,phone,password,role,house,gender,address,occupation
+John,Doe,john.doe@example.com,9876543210,Pass123!,user,Kadannamanna,male,123 Main St,Engineer
+Jane,Smith,jane.smith@example.com,9876543211,Pass123!,user,Ayiranazhi,female,456 Oak Ave,Doctor
+Mike,Johnson,mike.j@example.com,9876543212,Pass123!,user,Aripra,male,789 Pine Rd,Teacher
+Sarah,Williams,sarah.w@example.com,9876543213,Pass123!,user,Mankada,female,321 Elm St,Designer
+David,Brown,david.b@example.com,9876543214,Pass123!,user,Kadannamanna,male,654 Maple Dr,Manager
+Emily,Davis,emily.d@example.com,9876543215,Pass123!,admin,Ayiranazhi,female,987 Cedar Ln,Architect
+Robert,Wilson,robert.w@example.com,9876543216,Pass123!,user,Aripra,male,234 Birch Rd,Lawyer
+Lisa,Anderson,lisa.a@example.com,9876543217,Pass123!,user,Mankada,other,567 Willow Way,Artist
