@@ -179,10 +179,10 @@ const startServer = async () => {
     // Initialize WebSocket server
     wsService.initialize(server);
     
-    server.listen(PORT, () => {
+    server.listen(PORT, '0.0.0.0', () => {
       console.log(`🚀 Server running on port ${PORT}`);
       console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
-      console.log(`🔌 WebSocket server ready at ws://localhost:${PORT}/ws`);
+      console.log(`🔌 WebSocket server ready`);
     });
   } catch (error) {
     console.error('❌ Failed to start server:', error);
