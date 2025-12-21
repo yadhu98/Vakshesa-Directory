@@ -2,7 +2,7 @@
 import axios from 'axios';
 
 // API Base URL Configuration
-const API_BASE_URL = 'http://localhost:5001/api'; // Update as needed
+const API_BASE_URL = 'https://vakshesa-directory.onrender.com/api'; // Update as needed
 
 
 const axiosInstance = axios.create({
