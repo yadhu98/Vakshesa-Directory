@@ -14,6 +14,7 @@ interface User {
   role: string;
   familyId: string;
   isActive: boolean;
+  address?: string;
 }
 
 interface EditUser {

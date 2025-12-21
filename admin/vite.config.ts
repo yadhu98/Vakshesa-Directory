@@ -20,5 +20,16 @@ export default defineConfig({
   build: {
     target: 'ES2020',
     outDir: 'dist',
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'react-vendor': ['react', 'react-dom', 'react-router-dom'],
+          'chart-vendor': ['recharts'],
+          'ui-vendor': ['lucide-react', 'react-hot-toast'],
+          'utils': ['axios'],
+        },
+      },
+    },
+    chunkSizeWarningLimit: 1000,
   },
 });

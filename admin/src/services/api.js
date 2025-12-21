@@ -1,5 +1,5 @@
 import axios from 'axios';
-const API_BASE_URL = "https://vakshesa-directory.onrender.com/api";
+const API_BASE_URL = 'https://vakshesa-directory.onrender.com/api';
 const axiosInstance = axios.create({
     baseURL: API_BASE_URL,
     headers: {
@@ -32,6 +32,13 @@ export const adminService = {
     togglePhase2: (eventId, isActive) => axiosInstance.put(`/admin/event/${eventId}/phase2`, { isActive }),
     getEventStatus: (eventId) => axiosInstance.get(`/admin/event/${eventId}/status`),
     getLeaderboard: (limit = 100) => axiosInstance.get('/users/leaderboard', { params: { limit } }),
+    generateAdminCode: () => axiosInstance.post('/admin/admin-code'),
+    getActiveCodes: () => axiosInstance.get('/admin/admin-codes'),
+    getUsers: () => axiosInstance.get('/bulk/users'),
+    getFamilies: () => axiosInstance.get('/bulk/families'),
+    deleteAllUsers: (confirmCode) => axiosInstance.delete('/bulk/delete-all-users', { data: { confirmCode } }),
+    importUsers: (users) => axiosInstance.post('/bulk/import-users', { users }),
+    clearLeaderboard: () => axiosInstance.delete('/bulk/clear-leaderboard', { data: { confirmCode: 'CLEAR_LEADERBOARD' } }),
 };
 export const userService = {
     getUserProfile: (userId) => axiosInstance.get(`/users/${userId}`),

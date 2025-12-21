@@ -108,7 +108,7 @@ const Stalls: React.FC = () => {
 
   const handleCreateClick = () => {
     if (carnivals.length === 0) {
-      toast.warning('No active or upcoming carnivals. Please create a carnival event first.');
+      toast.error('No active or upcoming carnivals. Please create a carnival event first.');
       return;
     }
     setEditingStall(null);
@@ -154,7 +154,7 @@ const Stalls: React.FC = () => {
     e.preventDefault();
 
     if (!formData.name || !formData.carnivalEventId || formData.adminIds.length === 0) {
-      toast.warning('Please fill in all required fields');
+      toast.error('Please fill in all required fields');
       return;
     }
 

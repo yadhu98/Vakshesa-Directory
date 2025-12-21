@@ -7,6 +7,7 @@ export interface User {
   role: 'user' | 'admin';
   familyId: string;
   isActive: boolean;
+  address?: string;
 }
 
 export interface Family {
