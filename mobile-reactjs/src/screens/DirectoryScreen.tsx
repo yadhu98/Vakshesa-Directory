@@ -5,6 +5,8 @@ import { Search, ChevronRight, Phone, Mail } from 'feather-icons-react';
 import AppHeader from '../components/AppHeader';
 import { userService } from '../services/api';
 
+type House = 'All' | 'Kadannamanna' | 'Ayiranazhi' | 'Aripra' | 'Mankada';
+
 interface Member {
   _id: string;
   firstName: string;
@@ -35,9 +37,12 @@ const DirectoryScreen: React.FC = () => {
   const [members, setMembers] = useState<Member[]>([]);
   const [filteredMembers, setFilteredMembers] = useState<Member[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedHouse, setSelectedHouse] = useState<House>('All');
   const [loading, setLoading] = useState(true);
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedMember, setSelectedMember] = useState<Member | null>(null);
+
+  const houses: House[] = ['All', 'Kadannamanna', 'Mankada', 'Ayiranazhi', 'Aripra'];
 
   useEffect(() => {
     setLoading(true);
@@ -54,17 +59,28 @@ const DirectoryScreen: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    if (!searchQuery) {
+    if (!searchQuery && selectedHouse === 'All') {
       setFilteredMembers(members);
     } else {
-      setFilteredMembers(
-        members.filter((m: Member) =>
+      let filtered = members;
+      
+      // Filter by house
+      if (selectedHouse !== 'All') {
+        filtered = filtered.filter((m: Member) => m.house === selectedHouse);
+      }
+      
+      // Filter by search query
+      if (searchQuery) {
+        filtered = filtered.filter((m: Member) =>
           `${m.firstName} ${m.lastName}`.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          m.email.toLowerCase().includes(searchQuery.toLowerCase())
-        )
-      );
+          m.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          m.phone?.toLowerCase().includes(searchQuery.toLowerCase())
+        );
+      }
+      
+      setFilteredMembers(filtered);
     }
-  }, [searchQuery, members]);
+  }, [searchQuery, selectedHouse, members]);
 
   const getInitials = (firstName: string, lastName: string) => {
     return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
@@ -89,6 +105,37 @@ const DirectoryScreen: React.FC = () => {
             onChange={e => setSearchQuery(e.target.value)}
           />
         </div>
+
+        {/* House Filter Chips */}
+        <div style={{ display: 'flex', gap: 8, overflowX: 'auto', marginBottom: 16, paddingBottom: 4 }}>
+          {houses.map(house => {
+            const isSelected = selectedHouse === house;
+            return (
+              <button
+                key={house}
+                onClick={() => setSelectedHouse(house)}
+                style={{
+                  paddingLeft: 20,
+                  paddingRight: 20,
+                  paddingTop: 10,
+                  paddingBottom: 10,
+                  borderRadius: 20,
+                  background: isSelected ? colors.primary : colors.white,
+                  border: `1px solid ${isSelected ? colors.primary : colors.gray.border}`,
+                  color: isSelected ? colors.white : colors.gray.dark,
+                  fontSize: 14,
+                  fontWeight: '500',
+                  cursor: 'pointer',
+                  whiteSpace: 'nowrap',
+                  transition: 'all 0.2s',
+                }}
+              >
+                {house}
+              </button>
+            );
+          })}
+        </div>
+
         {loading ? (
           <div style={{ textAlign: 'center', marginTop: 40 }}>Loading...</div>
         ) : (
