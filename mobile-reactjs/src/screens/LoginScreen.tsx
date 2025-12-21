@@ -1,5 +1,6 @@
 
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { authService } from '../services/api';
 
 interface LoginScreenProps {
@@ -30,19 +31,6 @@ const styles = {
     marginBottom: 8,
   },
   subtitle: {
-      input: {
-        width: '100%',
-        borderWidth: 1,
-        borderStyle: 'solid',
-        borderColor: '#ddd',
-        padding: 12,
-        borderRadius: 8,
-        marginBottom: 12,
-        fontSize: 16,
-        color: '#333',
-        outline: 'none',
-        boxSizing: 'border-box',
-      },
     textAlign: 'center',
     color: '#666',
     marginBottom: 24,
@@ -73,14 +61,6 @@ const styles = {
     fontWeight: 'bold',
     cursor: 'pointer',
     transition: 'opacity 0.2s',
-      register: {
-        marginTop: 16,
-        textAlign: 'center',
-        color: '#667eea',
-        fontWeight: 'bold',
-        cursor: 'pointer',
-        fontSize: 15,
-      },
   },
   buttonDisabled: {
     opacity: 0.6,
@@ -113,6 +93,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const navigate = useNavigate();
 
     const handleLogin = async () => {
     setError('');
@@ -130,8 +111,8 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
   return (
     <div style={styles.container as React.CSSProperties}>
       <div style={styles.content as React.CSSProperties}>
-        <div style={styles.title as React.CSSProperties}>Vksha Event</div>
-        <div style={styles.subtitle as React.CSSProperties}>Family Festival Management</div>
+        <div style={styles.title as React.CSSProperties}>Vakshesa Directory</div>
+        <div style={styles.subtitle as React.CSSProperties}>Family Member Portal</div>
         {error && (
           <div style={styles.errorContainer as React.CSSProperties}>
             <span style={styles.errorText as React.CSSProperties}>{error}</span>
@@ -162,7 +143,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
         </button>
         <div
           style={styles.register as React.CSSProperties}
-          onClick={() => window.location.replace('/register')}
+          onClick={() => navigate('/register')}
         >
           New here? Register
         </div>

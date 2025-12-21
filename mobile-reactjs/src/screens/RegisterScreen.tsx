@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { authService } from '../services/api';
 
 const initialForm = {
@@ -161,6 +162,7 @@ const RegisterScreen: React.FC<{ onRegisterSuccess: () => void }> = ({ onRegiste
   const [form, setForm] = useState(initialForm);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const navigate = useNavigate();
 
   const handleChange = (key: string, value: string) => {
     setForm({ ...form, [key]: value });
@@ -268,7 +270,7 @@ const RegisterScreen: React.FC<{ onRegisterSuccess: () => void }> = ({ onRegiste
         <button style={{ ...styles.button, ...(loading ? styles.buttonDisabled : {}) }} type="submit" disabled={loading}>
           {loading ? 'Creating Account...' : 'Create Account'}
         </button>
-        <div style={styles.linkButton} onClick={() => window.location.replace('/')}>Already have an account? Sign In</div>
+        <div style={styles.linkButton} onClick={() => navigate('/')}>Already have an account? Sign In</div>
       </form>
     </div>
   );

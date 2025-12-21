@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 interface User {
   _id: string;
@@ -32,6 +33,7 @@ const colors = {
 const AppHeader: React.FC<AppHeaderProps> = ({ title, showBack = false, showBackButton = false, onBack }) => {
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [user, setUser] = useState<User | null>(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
     // Replace AsyncStorage with localStorage for web
@@ -63,7 +65,7 @@ const AppHeader: React.FC<AppHeaderProps> = ({ title, showBack = false, showBack
   const handleLogout = () => {
     localStorage.removeItem('userData');
     setShowProfileModal(false);
-    window.location.replace('/');
+    navigate('/');
   };
 
   return (
