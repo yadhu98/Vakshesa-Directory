@@ -28,15 +28,15 @@ const styles = {
   editButton: { background: '#000', color: '#fff', margin: '16px', padding: 16, borderRadius: 12, textAlign: 'center', fontWeight: 600, fontSize: 16, cursor: 'pointer' },
 };
 
-const InfoRow = ({ label, value, multiline }) => (
+const InfoRow = ({ label, value, multiline }: { label: string; value: any; multiline?: boolean }) => (
   <div style={styles.infoRow}>
     <div style={styles.infoLabel}>{label}</div>
     <div style={{ ...styles.infoValue, ...(multiline ? styles.infoValueMultiline : {}) }}>{value}</div>
   </div>
 );
 
-const EnhancedProfileScreen = ({ userId, onEditProfile }) => {
-  const [profile, setProfile] = useState(null);
+const EnhancedProfileScreen = ({ userId, onEditProfile }: { userId?: string; onEditProfile?: () => void }) => {
+  const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -54,7 +54,7 @@ const EnhancedProfileScreen = ({ userId, onEditProfile }) => {
         try {
           const familiesRes = await api.get('/bulk/families');
           const families = familiesRes.data || [];
-          const family = families.find(f => f._id === userData.familyId);
+          const family = families.find((f: any) => f._id === userData.familyId);
           if (family) familyName = family.name;
         } catch {}
         // Tokens and points
@@ -82,20 +82,20 @@ const EnhancedProfileScreen = ({ userId, onEditProfile }) => {
 
   return (
     <div style={styles.container}>
-      <div style={styles.headerCard}>
+      <div style={styles.headerCard as React.CSSProperties}>
         <div style={styles.avatar}>{profile.firstName?.[0]}{profile.lastName?.[0]}</div>
         <div style={styles.name}>{profile.firstName} {profile.lastName}</div>
         <div style={styles.email}>{profile.email}</div>
         <div><span style={styles.badge}>{profile.house || 'No House'}</span></div>
       </div>
       <div style={styles.statsGrid}>
-        <div style={styles.statCard}>
-          <Feather icon="credit-card" size={24} />
+        <div style={styles.statCard as React.CSSProperties}>
+          <Feather name="credit-card" size={24} />
           <div style={styles.statValue}>{profile.tokenBalance || 0}</div>
           <div style={styles.statLabel}>Tokens</div>
         </div>
-        <div style={styles.statCard}>
-          <Feather icon="star" size={24} />
+        <div style={styles.statCard as React.CSSProperties}>
+          <Feather name="star" size={24} />
           <div style={styles.statValue}>{profile.totalPoints || 0}</div>
           <div style={styles.statLabel}>Points</div>
         </div>
@@ -131,7 +131,7 @@ const EnhancedProfileScreen = ({ userId, onEditProfile }) => {
         )}
       </div>
       {onEditProfile && (
-        <div style={styles.editButton} onClick={onEditProfile}>Edit Profile</div>
+        <div style={styles.editButton as React.CSSProperties} onClick={onEditProfile}>Edit Profile</div>
       )}
     </div>
   );

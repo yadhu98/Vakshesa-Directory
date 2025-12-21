@@ -16,14 +16,7 @@ const styles = {
   },
   content: {
     padding: 24,
-      content: {
-        padding: 24,
-        background: 'white',
-        borderRadius: 16,
-        width: '100%',
-        maxWidth: 340,
-        boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
-      },
+    background: 'white',
     borderRadius: 16,
     width: '100%',
     maxWidth: 340,
