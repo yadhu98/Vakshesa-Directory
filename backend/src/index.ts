@@ -20,7 +20,7 @@ dotenv.config();
 
 const app = express();
 const server = http.createServer(app);
-const PORT = process.env.PORT || 5000;
+const PORT = Number(process.env.PORT) || 5000;
 
 // Trust proxy for dev tunnels and reverse proxies
 app.set('trust proxy', true);
