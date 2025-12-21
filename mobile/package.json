@@ -21,7 +21,7 @@
     "@react-navigation/stack": "^6.3.20",
     "@types/react-native-vector-icons": "^6.4.18",
     "axios": "^1.6.2",
-    "expo": "^49.0.0",
+    "expo": "^49.0.23",
     "expo-auth-session": "^7.0.10",
     "expo-barcode-scanner": "^12.9.3",
     "expo-camera": "^13.4.4",
