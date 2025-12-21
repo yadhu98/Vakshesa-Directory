@@ -18,9 +18,9 @@ const stallSchema = new mongoose_1.Schema({
         required: true,
     },
     shopkeeperId: {
-        type: mongoose_1.Schema.Types.ObjectId,
-        ref: 'User',
+        type: String,
         required: true,
+        index: true,
     },
     pointsPerTransaction: {
         type: Number,
@@ -31,6 +31,5 @@ const stallSchema = new mongoose_1.Schema({
         default: true,
     },
 }, { timestamps: true });
-stallSchema.index({ shopkeeperId: 1 });
 stallSchema.index({ type: 1 });
 exports.Stall = (0, mongoose_1.model)('Stall', stallSchema);

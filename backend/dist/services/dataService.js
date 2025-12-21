@@ -66,14 +66,18 @@ const getLeaderboard = async (limit = 100) => {
 exports.getLeaderboard = getLeaderboard;
 const searchUsers = async (query, limit = 20) => {
     const allUsers = await storage_1.db.find('users', {});
-    return allUsers
-        .filter((u) => {
-        const fullName = `${u.firstName} ${u.lastName}`.toLowerCase();
-        const email = u.email?.toLowerCase() || '';
-        return fullName.includes(query.toLowerCase()) || email.includes(query.toLowerCase());
-    })
-        .slice(0, limit)
-        .map((u) => {
+    let filtered;
+    if (!query || query.trim() === '') {
+        filtered = allUsers;
+    }
+    else {
+        filtered = allUsers.filter((u) => {
+            const fullName = `${u.firstName} ${u.lastName}`.toLowerCase();
+            const email = u.email?.toLowerCase() || '';
+            return fullName.includes(query.toLowerCase()) || email.includes(query.toLowerCase());
+        });
+    }
+    return filtered.slice(0, limit).map((u) => {
         const { password, ...userWithoutPassword } = u;
         return userWithoutPassword;
     });

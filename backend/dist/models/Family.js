@@ -14,12 +14,12 @@ const familySchema = new mongoose_1.Schema({
         trim: true,
     },
     headOfFamily: {
-        type: mongoose_1.Schema.Types.ObjectId,
+        type: String,
         ref: 'User',
     },
     members: [
         {
-            type: mongoose_1.Schema.Types.ObjectId,
+            type: String,
             ref: 'User',
         },
     ],
@@ -31,6 +31,5 @@ const familySchema = new mongoose_1.Schema({
         default: true,
     },
 }, { timestamps: true });
-familySchema.index({ name: 1 });
 familySchema.index({ members: 1 });
 exports.Family = (0, mongoose_1.model)('Family', familySchema);

@@ -2,6 +2,8 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.getStallSales = exports.recordSale = exports.getUserPoints = exports.addPoints = void 0;
 const storage_1 = require("../config/storage");
+const websocket_1 = require("../services/websocket");
+const dataService_1 = require("../services/dataService");
 const addPoints = async (req, res) => {
     try {
         const { userId, stallId, points, qrCodeData } = req.body;
@@ -18,6 +20,9 @@ const addPoints = async (req, res) => {
             awardedBy: shopkeeperId,
             awardedAt: new Date(),
         });
+        // Get updated leaderboard and broadcast
+        const leaderboard = await (0, dataService_1.getLeaderboard)(100);
+        websocket_1.wsService.notifyLeaderboardUpdate(leaderboard);
         res.json({
             message: 'Points added successfully',
             point,

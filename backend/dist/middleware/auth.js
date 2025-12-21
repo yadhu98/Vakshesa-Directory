@@ -13,7 +13,7 @@ const authMiddleware = (req, res, next) => {
             return;
         }
         const decoded = jsonwebtoken_1.default.verify(token, process.env.JWT_SECRET || 'secret');
-        req.user = { id: decoded.id, role: decoded.role };
+        req.user = { id: decoded.id, role: decoded.role, isSuperUser: decoded.isSuperUser || false };
         next();
     }
     catch (error) {
@@ -22,7 +22,7 @@ const authMiddleware = (req, res, next) => {
 };
 exports.authMiddleware = authMiddleware;
 const adminMiddleware = (req, res, next) => {
-    if (req.user?.role !== 'admin') {
+    if (req.user?.role !== 'admin' && !req.user?.isSuperUser) {
         res.status(403).json({ message: 'Admin access required' });
         return;
     }
@@ -30,7 +30,7 @@ const adminMiddleware = (req, res, next) => {
 };
 exports.adminMiddleware = adminMiddleware;
 const shopkeeperMiddleware = (req, res, next) => {
-    if (req.user?.role !== 'shopkeeper' && req.user?.role !== 'admin') {
+    if (req.user?.role !== 'admin' && !req.user?.isSuperUser) {
         res.status(403).json({ message: 'Shopkeeper or admin access required' });
         return;
     }

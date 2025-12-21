@@ -4,14 +4,14 @@ exports.Sale = void 0;
 const mongoose_1 = require("mongoose");
 const saleSchema = new mongoose_1.Schema({
     stallId: {
-        type: mongoose_1.Schema.Types.ObjectId,
-        ref: 'Stall',
+        type: String,
         required: true,
+        index: true,
     },
     userId: {
-        type: mongoose_1.Schema.Types.ObjectId,
-        ref: 'User',
+        type: String,
         required: true,
+        index: true,
     },
     amount: {
         type: Number,
@@ -24,5 +24,4 @@ const saleSchema = new mongoose_1.Schema({
     },
 }, { timestamps: true });
 saleSchema.index({ stallId: 1, createdAt: -1 });
-saleSchema.index({ userId: 1 });
 exports.Sale = (0, mongoose_1.model)('Sale', saleSchema);

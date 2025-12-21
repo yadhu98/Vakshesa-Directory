@@ -4,18 +4,17 @@ exports.FamilyNode = void 0;
 const mongoose_1 = require("mongoose");
 const familyNodeSchema = new mongoose_1.Schema({
     userId: {
-        type: mongoose_1.Schema.Types.ObjectId,
-        ref: 'User',
+        type: String,
         required: true,
+        index: true,
     },
     familyId: {
-        type: mongoose_1.Schema.Types.ObjectId,
-        ref: 'Family',
+        type: String,
         required: true,
+        index: true,
     },
     parentId: {
-        type: mongoose_1.Schema.Types.ObjectId,
-        ref: 'User',
+        type: String,
     },
     generation: {
         type: Number,

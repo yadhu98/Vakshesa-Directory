@@ -1,7 +1,8 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getProfile = exports.updateProfile = exports.login = void 0;
+exports.changePassword = exports.getProfile = exports.updateProfile = exports.register = exports.login = void 0;
 const userService_1 = require("../services/userService");
+const storage_1 = require("../config/storage");
 const auth_1 = require("../utils/auth");
 const login = async (req, res) => {
     try {
@@ -11,7 +12,7 @@ const login = async (req, res) => {
             return;
         }
         const user = await (0, userService_1.validateUserCredentials)(email, password);
-        const token = (0, auth_1.generateToken)(user._id?.toString() || '', user.role);
+        const token = (0, auth_1.generateToken)(user._id?.toString() || '', user.role, user.isSuperUser);
         res.json({
             message: 'Login successful',
             token,
@@ -21,6 +22,7 @@ const login = async (req, res) => {
                 lastName: user.lastName,
                 email: user.email,
                 role: user.role,
+                isSuperUser: user.isSuperUser,
                 familyId: user.familyId,
             },
         });
@@ -30,15 +32,100 @@ const login = async (req, res) => {
     }
 };
 exports.login = login;
+const register = async (req, res) => {
+    try {
+        const { firstName, lastName, name, email, phone, password, role, familyId, house, validationCode, isSuperUser } = req.body;
+        // Support both name (mobile) and firstName/lastName (admin)
+        let userFirstName = firstName;
+        let userLastName = lastName;
+        if (!firstName && name) {
+            const nameParts = name.trim().split(' ');
+            userFirstName = nameParts[0] || 'User';
+            userLastName = nameParts.slice(1).join(' ') || 'Family';
+        }
+        if (!userFirstName || !email || !phone || !password || !house) {
+            res.status(400).json({ message: 'Missing required fields' });
+            return;
+        }
+        // Validate house
+        const validHouses = ['Kadannamanna', 'Ayiranazhi', 'Aripra', 'Mankada'];
+        if (!validHouses.includes(house)) {
+            res.status(400).json({ message: 'Invalid house. Must be one of: Kadannamanna, Ayiranazhi, Aripra, Mankada' });
+            return;
+        }
+        const normalizedEmail = email.toLowerCase();
+        let finalRole = role || 'user';
+        // Super user bypass - no email restriction
+        const allowSuperUser = isSuperUser === true;
+        if (finalRole === 'admin' && !allowSuperUser) {
+            if (!validationCode) {
+                res.status(400).json({ message: 'Admin registration requires validationCode' });
+                return;
+            }
+            // Validate admin code
+            const codeRecord = await storage_1.db.findOne('adminCodes', { code: validationCode });
+            if (!codeRecord) {
+                res.status(400).json({ message: 'Invalid validation code' });
+                return;
+            }
+            if (codeRecord.used) {
+                res.status(400).json({ message: 'Validation code already used' });
+                return;
+            }
+            if (new Date(codeRecord.expiresAt).getTime() < Date.now()) {
+                res.status(400).json({ message: 'Validation code expired' });
+                return;
+            }
+            // Mark code used
+            await storage_1.db.updateOne('adminCodes', { _id: codeRecord._id }, { used: true, usedAt: new Date() });
+        }
+        const user = await (0, userService_1.createUser)({
+            firstName: userFirstName,
+            lastName: userLastName || '',
+            email: normalizedEmail,
+            phone,
+            password,
+            role: finalRole,
+            house,
+            isSuperUser: !!allowSuperUser,
+            familyId: familyId || 'family-default',
+        });
+        const token = (0, auth_1.generateToken)(user._id?.toString() || '', user.role, user.isSuperUser);
+        const { password: _, ...safeUser } = user;
+        res.status(201).json({
+            message: 'Registration successful',
+            token,
+            user: safeUser,
+        });
+    }
+    catch (error) {
+        res.status(400).json({ message: error.message });
+    }
+};
+exports.register = register;
 const updateProfile = async (req, res) => {
     try {
-        const { firstName, lastName, dateOfBirth, gender } = req.body;
+        const { firstName, lastName, dateOfBirth, gender, phone, profession, address } = req.body;
         const userId = req.user?.id;
         if (!userId) {
             res.status(401).json({ message: 'Unauthorized' });
             return;
         }
-        const allowedUpdates = { firstName, lastName, dateOfBirth, gender };
+        const allowedUpdates = {};
+        if (firstName !== undefined)
+            allowedUpdates.firstName = firstName;
+        if (lastName !== undefined)
+            allowedUpdates.lastName = lastName;
+        if (dateOfBirth !== undefined)
+            allowedUpdates.dateOfBirth = dateOfBirth;
+        if (gender !== undefined)
+            allowedUpdates.gender = gender;
+        if (phone !== undefined)
+            allowedUpdates.phone = phone;
+        if (profession !== undefined)
+            allowedUpdates.profession = profession;
+        if (address !== undefined)
+            allowedUpdates.address = address;
         const updatedUser = await (0, userService_1.updateUserProfile)(userId, allowedUpdates);
         res.json({
             message: 'Profile updated successfully',
@@ -65,3 +152,42 @@ const getProfile = async (req, res) => {
     }
 };
 exports.getProfile = getProfile;
+const changePassword = async (req, res) => {
+    try {
+        const userId = req.user?.id;
+        const { currentPassword, newPassword } = req.body;
+        if (!userId) {
+            res.status(401).json({ message: 'Unauthorized' });
+            return;
+        }
+        if (!currentPassword || !newPassword) {
+            res.status(400).json({ message: 'Current password and new password are required' });
+            return;
+        }
+        if (newPassword.length < 6) {
+            res.status(400).json({ message: 'New password must be at least 6 characters long' });
+            return;
+        }
+        // Get user
+        const user = await storage_1.db.findById('users', userId);
+        if (!user) {
+            res.status(404).json({ message: 'User not found' });
+            return;
+        }
+        // Verify current password
+        const bcrypt = require('bcrypt');
+        const isMatch = await bcrypt.compare(currentPassword, user.password);
+        if (!isMatch) {
+            res.status(401).json({ message: 'Current password is incorrect' });
+            return;
+        }
+        // Hash new password and update
+        const hashedPassword = await bcrypt.hash(newPassword, 10);
+        await storage_1.db.update('users', userId, { password: hashedPassword });
+        res.json({ message: 'Password changed successfully' });
+    }
+    catch (error) {
+        res.status(400).json({ message: error.message });
+    }
+};
+exports.changePassword = changePassword;

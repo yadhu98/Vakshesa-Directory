@@ -2,8 +2,14 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
 const adminController_1 = require("../controllers/adminController");
+const adminCodeController_1 = require("../controllers/adminCodeController");
 const auth_1 = require("../middleware/auth");
 const router = (0, express_1.Router)();
 router.put('/event/:eventId/phase2', auth_1.authMiddleware, auth_1.adminMiddleware, adminController_1.togglePhase2);
 router.get('/event/:eventId/status', auth_1.authMiddleware, auth_1.adminMiddleware, adminController_1.getEventStatus);
+router.post('/admin-code', auth_1.authMiddleware, auth_1.adminMiddleware, adminCodeController_1.generateAdminCode);
+router.get('/admin-codes', auth_1.authMiddleware, auth_1.adminMiddleware, adminCodeController_1.listActiveAdminCodes);
+router.post('/token-config', auth_1.authMiddleware, auth_1.adminMiddleware, adminController_1.saveTokenConfig);
+router.get('/token-config/:eventId', auth_1.authMiddleware, auth_1.adminMiddleware, adminController_1.getTokenConfig);
+router.post('/cleanup-users', auth_1.authMiddleware, auth_1.adminMiddleware, adminController_1.cleanupNonSuperAdminUsers);
 exports.default = router;

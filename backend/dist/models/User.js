@@ -32,12 +32,21 @@ const userSchema = new mongoose_1.Schema({
     },
     role: {
         type: String,
-        enum: ['user', 'shopkeeper', 'admin'],
+        enum: ['user', 'admin'],
         default: 'user',
     },
+    isSuperUser: {
+        type: Boolean,
+        default: false,
+    },
     familyId: {
-        type: mongoose_1.Schema.Types.ObjectId,
-        ref: 'Family',
+        type: String,
+        required: true,
+        index: true,
+    },
+    house: {
+        type: String,
+        enum: ['Kadannamanna', 'Ayiranazhi', 'Aripra', 'Mankada'],
         required: true,
     },
     profilePicture: {
@@ -54,10 +63,54 @@ const userSchema = new mongoose_1.Schema({
         type: Boolean,
         default: true,
     },
+    // Family tree relationships
+    fatherId: {
+        type: String,
+        index: true,
+    },
+    motherId: {
+        type: String,
+        index: true,
+    },
+    spouseId: {
+        type: String,
+        index: true,
+    },
+    children: {
+        type: [String],
+        default: [],
+    },
+    generation: {
+        type: Number,
+        default: 1,
+        index: true,
+    },
+    isAlive: {
+        type: Boolean,
+        default: true,
+    },
+    // Additional family info
+    marriageDate: {
+        type: Date,
+    },
+    deathDate: {
+        type: Date,
+    },
+    occupation: {
+        type: String,
+        trim: true,
+    },
+    address: {
+        type: String,
+        trim: true,
+    },
+    notes: {
+        type: String,
+        trim: true,
+    },
 }, { timestamps: true });
 // Index for fast lookups
-userSchema.index({ email: 1 });
-userSchema.index({ phone: 1 });
-userSchema.index({ familyId: 1 });
 userSchema.index({ role: 1 });
+userSchema.index({ house: 1 });
+userSchema.index({ familyId: 1, generation: 1 });
 exports.User = (0, mongoose_1.model)('User', userSchema);

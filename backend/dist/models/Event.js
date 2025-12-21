@@ -25,6 +25,12 @@ const eventSchema = new mongoose_1.Schema({
         type: String,
         trim: true,
     },
+    status: {
+        type: String,
+        enum: ['upcoming', 'active', 'completed'],
+        default: 'upcoming',
+        required: true,
+    },
     isPhase2Active: {
         type: Boolean,
         default: false,
@@ -35,6 +41,14 @@ const eventSchema = new mongoose_1.Schema({
     maxPoints: {
         type: Number,
         default: 1000,
+    },
+    bannerImage: {
+        type: String,
+        trim: true,
+    },
+    isActive: {
+        type: Boolean,
+        default: true,
     },
 }, { timestamps: true });
 exports.Event = (0, mongoose_1.model)('Event', eventSchema);

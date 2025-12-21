@@ -10,18 +10,18 @@
  */
 
 import * as dotenv from 'dotenv';
-import Database from '../config/database';
+import { connectDB, disconnectDB } from '../config/database';
+import { db } from '../config/storage';
 
 dotenv.config();
 
 const superAdminEmail = 'admin@vakshesa.com';
 
 async function cleanupUsers() {
-  const db = new Database();
 
   try {
     console.log('🔄 Connecting to database...');
-    await db.connect();
+    await connectDB();
     console.log('✅ Connected to database\n');
 
     // Get total count of users before cleanup
@@ -49,7 +49,7 @@ async function cleanupUsers() {
     // Display remaining users
     if (remainingUsers.length > 0) {
       console.log('\n👥 Remaining users:');
-      remainingUsers.forEach((user) => {
+      remainingUsers.forEach((user: any) => {
         console.log(`  • ${user.firstName} ${user.lastName} (${user.email})`);
       });
     }
@@ -65,7 +65,7 @@ async function cleanupUsers() {
     console.error('❌ Error during cleanup:', error);
     process.exit(1);
   } finally {
-    await db.disconnect();
+    await disconnectDB();
     console.log('🔌 Database connection closed');
     process.exit(0);
   }

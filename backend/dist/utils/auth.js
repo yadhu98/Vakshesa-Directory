@@ -6,8 +6,8 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.generateQRCode = exports.comparePassword = exports.hashPassword = exports.generateToken = void 0;
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const bcryptjs_1 = __importDefault(require("bcryptjs"));
-const generateToken = (id, role) => {
-    return jsonwebtoken_1.default.sign({ id, role }, (process.env.JWT_SECRET || 'secret'), { expiresIn: process.env.JWT_EXPIRE || '7d' });
+const generateToken = (id, role, isSuperUser) => {
+    return jsonwebtoken_1.default.sign({ id, role, isSuperUser: isSuperUser || false }, (process.env.JWT_SECRET || 'secret'), { expiresIn: process.env.JWT_EXPIRE || '7d' });
 };
 exports.generateToken = generateToken;
 const hashPassword = async (password) => {

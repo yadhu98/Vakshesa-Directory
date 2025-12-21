@@ -4,14 +4,14 @@ exports.Point = void 0;
 const mongoose_1 = require("mongoose");
 const pointSchema = new mongoose_1.Schema({
     userId: {
-        type: mongoose_1.Schema.Types.ObjectId,
-        ref: 'User',
+        type: String,
         required: true,
+        index: true,
     },
     stallId: {
-        type: mongoose_1.Schema.Types.ObjectId,
-        ref: 'Stall',
+        type: String,
         required: true,
+        index: true,
     },
     points: {
         type: Number,
@@ -27,8 +27,7 @@ const pointSchema = new mongoose_1.Schema({
         type: String,
     },
     awardedBy: {
-        type: mongoose_1.Schema.Types.ObjectId,
-        ref: 'User',
+        type: String,
         required: true,
     },
     awardedAt: {
@@ -37,7 +36,5 @@ const pointSchema = new mongoose_1.Schema({
     },
 }, { timestamps: true });
 pointSchema.index({ userId: 1, stallId: 1 });
-pointSchema.index({ userId: 1 });
 pointSchema.index({ awardedAt: -1 });
-pointSchema.index({ transactionId: 1 });
 exports.Point = (0, mongoose_1.model)('Point', pointSchema);

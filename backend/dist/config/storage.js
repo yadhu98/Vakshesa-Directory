@@ -1,6 +1,9 @@
 "use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.db = void 0;
+exports.db = exports.inMemoryDb = void 0;
 class InMemoryStorage {
     constructor() {
         this.collections = {};
@@ -12,6 +15,10 @@ class InMemoryStorage {
             stalls: new Map(),
             points: new Map(),
             sales: new Map(),
+            admincodes: new Map(),
+            tokens: new Map(),
+            transactions: new Map(),
+            stallvisits: new Map(),
         };
     }
     createId() {
@@ -72,6 +79,17 @@ class InMemoryStorage {
         }
         return null;
     }
+    async update(collection, id, update) {
+        const col = this.collections[collection.toLowerCase()];
+        if (!col)
+            return null;
+        const doc = col.get(id);
+        if (!doc)
+            return null;
+        const updated = { ...doc, ...update, updatedAt: new Date() };
+        col.set(id, updated);
+        return updated;
+    }
     async deleteOne(collection, filter) {
         const col = this.collections[collection.toLowerCase()] || new Map();
         for (const [id, doc] of col) {
@@ -88,6 +106,37 @@ class InMemoryStorage {
             }
         }
         return false;
+    }
+    async deleteMany(collection, filter) {
+        const col = this.collections[collection.toLowerCase()] || new Map();
+        let deletedCount = 0;
+        const idsToDelete = [];
+        for (const [id, doc] of col) {
+            let matches = true;
+            for (const [key, value] of Object.entries(filter)) {
+                // Handle $ne operator
+                if (typeof value === 'object' && value !== null && '$ne' in value) {
+                    if (doc[key] === value.$ne) {
+                        matches = false;
+                        break;
+                    }
+                }
+                else {
+                    if (doc[key] !== value) {
+                        matches = false;
+                        break;
+                    }
+                }
+            }
+            if (matches) {
+                idsToDelete.push(id);
+            }
+        }
+        for (const id of idsToDelete) {
+            col.delete(id);
+            deletedCount++;
+        }
+        return { deletedCount };
     }
     async aggregate(collection, pipeline) {
         let col = this.collections[collection.toLowerCase()] || new Map();
@@ -138,10 +187,18 @@ class InMemoryStorage {
         }
         return results;
     }
-    clear() {
+    async clear() {
         for (const col of Object.keys(this.collections)) {
             this.collections[col].clear();
         }
     }
 }
-exports.db = new InMemoryStorage();
+exports.inMemoryDb = new InMemoryStorage();
+// Export the appropriate storage based on environment variable
+const mongoStorage_1 = require("./mongoStorage");
+const dotenv_1 = __importDefault(require("dotenv"));
+// Load environment variables
+dotenv_1.default.config();
+const storageMode = process.env.STORAGE_MODE || 'memory';
+exports.db = storageMode === 'mongodb' ? mongoStorage_1.mongoDb : exports.inMemoryDb;
+console.log(`📦 Storage mode: ${storageMode === 'mongodb' ? 'MongoDB' : 'In-Memory'}`);
