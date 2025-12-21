@@ -32,13 +32,9 @@ export const getFamilyTreeStructure = async (req: AuthRequest, res: Response): P
 
 export const search = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const { q, limit = '20' } = req.query;
+    const { q = '', limit = '20' } = req.query;
 
-    if (!q) {
-      res.status(400).json({ message: 'Search query is required' });
-      return;
-    }
-
+    // If q is empty, return all users up to limit
     const results = await searchUsers(String(q), parseInt(String(limit)));
 
     res.json({

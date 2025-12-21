@@ -67,16 +67,19 @@ export const getLeaderboard = async (limit: number = 100): Promise<any[]> => {
 
 export const searchUsers = async (query: string, limit: number = 20) => {
   const allUsers = await db.find('users', {});
-  return allUsers
-    .filter((u) => {
+  let filtered;
+  if (!query || query.trim() === '') {
+    filtered = allUsers;
+  } else {
+    filtered = allUsers.filter((u) => {
       const fullName = `${u.firstName} ${u.lastName}`.toLowerCase();
       const email = u.email?.toLowerCase() || '';
       return fullName.includes(query.toLowerCase()) || email.includes(query.toLowerCase());
-    })
-    .slice(0, limit)
-    .map((u) => {
-      const { password, ...userWithoutPassword } = u;
-      return userWithoutPassword;
     });
+  }
+  return filtered.slice(0, limit).map((u) => {
+    const { password, ...userWithoutPassword } = u;
+    return userWithoutPassword;
+  });
 };
 
