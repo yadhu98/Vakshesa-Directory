@@ -21,7 +21,7 @@ const ChangePasswordScreen = () => {
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
 
-  const handleChangePassword = async (e) => {
+  const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setMessage('');
@@ -48,7 +48,7 @@ const ChangePasswordScreen = () => {
       setCurrentPassword('');
       setNewPassword('');
       setConfirmPassword('');
-    } catch (err) {
+    } catch (err: any) {
       setError(err?.response?.data?.message || 'Failed to change password');
     } finally {
       setLoading(false);
@@ -67,7 +67,7 @@ const ChangePasswordScreen = () => {
         <input style={styles.input} type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)} placeholder="Enter new password (min 8 characters)" />
         <div style={styles.label}>Confirm New Password *</div>
         <input style={styles.input} type="password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} placeholder="Re-enter new password" />
-        <button style={{ ...styles.button, ...(loading ? styles.buttonDisabled : {}) }} type="submit" disabled={loading}>{loading ? 'Changing...' : 'Change Password'}</button>
+        <button style={{ ...styles.button, ...(loading ? styles.buttonDisabled : {}) } as React.CSSProperties} type="submit" disabled={loading}>{loading ? 'Changing...' : 'Change Password'}</button>
       </form>
     </div>
   );
