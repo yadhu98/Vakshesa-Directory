@@ -192,6 +192,21 @@ const DirectoryScreen: React.FC = () => {
         }
       });
       
+      // Include siblings of children as children
+      // If UserA has child UserB, and UserB has sibling UserC, include UserC as UserA's child too
+      const childrenWithSiblings = [...loadedFamily.children];
+      for (const child of childrenWithSiblings) {
+        if (child.siblings && child.siblings.length > 0) {
+          for (const siblingId of child.siblings) {
+            // Find the sibling in allUsers
+            const sibling = allUsers.find((u: Member) => u._id === siblingId);
+            if (sibling && !loadedFamily.children.find((c: Member) => c._id === sibling._id)) {
+              loadedFamily.children.push(sibling);
+            }
+          }
+        }
+      }
+      
       // Infer spouse from shared children
       // If this member is a parent and we don't have a spouse yet, check if children have another parent
       if (!loadedFamily.spouse && loadedFamily.children.length > 0) {
