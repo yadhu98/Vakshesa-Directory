@@ -94,7 +94,7 @@ export const toggleUserStatus = async (req: AuthRequest, res: Response): Promise
 export const updateUser = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const { userId } = req.params;
-    const { firstName, lastName, email, phone, role, isActive, gender, house, occupation, address, linkedin, instagram, facebook } = req.body;
+    const { firstName, lastName, email, phone, role, isActive, gender, house, occupation, address, linkedin, instagram, facebook, countryCode, profilePicture } = req.body;
 
     const { db } = await import('../config/storage');
     const user = await db.findById('users', userId);
@@ -118,6 +118,7 @@ export const updateUser = async (req: AuthRequest, res: Response): Promise<void>
     if (lastName !== undefined) updates.lastName = lastName;
     if (email !== undefined) updates.email = email;
     if (phone !== undefined) updates.phone = phone;
+    if (countryCode !== undefined) updates.countryCode = countryCode;
     if (gender !== undefined) updates.gender = gender;
     if (house !== undefined) updates.house = house;
     if (occupation !== undefined) updates.occupation = occupation;
@@ -125,6 +126,7 @@ export const updateUser = async (req: AuthRequest, res: Response): Promise<void>
     if (linkedin !== undefined) updates.linkedin = linkedin;
     if (instagram !== undefined) updates.instagram = instagram;
     if (facebook !== undefined) updates.facebook = facebook;
+    if (profilePicture !== undefined) updates.profilePicture = profilePicture;
     
     // Only admins can update role and isActive
     if (req.user?.role === 'admin' || req.user?.isSuperUser) {

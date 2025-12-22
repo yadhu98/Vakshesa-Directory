@@ -188,9 +188,24 @@ const DirectoryScreen: React.FC = () => {
           <ul style={{ listStyle: 'none', padding: 0 }}>
             {filteredMembers.map((member: Member) => (
               <li key={member._id} style={{ background: '#fff', marginBottom: 12, borderRadius: 8, padding: 16, boxShadow: '0 1px 4px rgba(0,0,0,0.04)', display: 'flex', alignItems: 'center', cursor: 'pointer' }} onClick={() => handleMemberClick(member)}>
-                <div style={{ width: 48, height: 48, borderRadius: '50%', background: colors.primary, marginRight: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 600, fontSize: 18 }}>
-                  {member.firstName[0]}{member.lastName[0]}
-                </div>
+                {member.profilePicture ? (
+                  <img
+                    src={member.profilePicture}
+                    alt={`${member.firstName} ${member.lastName}`}
+                    style={{
+                      width: 48,
+                      height: 48,
+                      borderRadius: '50%',
+                      objectFit: 'cover',
+                      marginRight: 16,
+                      border: '2px solid #000',
+                    }}
+                  />
+                ) : (
+                  <div style={{ width: 48, height: 48, borderRadius: '50%', background: colors.primary, marginRight: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 600, fontSize: 18 }}>
+                    {member.firstName[0]}{member.lastName[0]}
+                  </div>
+                )}
                 <div style={{ flex: 1 }}>
                   <div style={{ fontWeight: 600 }}>{member.firstName} {member.lastName}</div>
                   <div style={{ color: colors.gray.dark, fontSize: 14 }}>{member.email}</div>
@@ -234,7 +249,37 @@ const DirectoryScreen: React.FC = () => {
               <X size={18} color={colors.gray.dark} />
             </button>
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: 16 }}>
-              <div style={{ width: 64, height: 64, borderRadius: '50%', background: colors.primary, color: colors.white, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28, fontWeight: 700, marginBottom: 8 }}>{getInitials(selectedMember.firstName, selectedMember.lastName)}</div>
+              {selectedMember.profilePicture ? (
+                <img
+                  src={selectedMember.profilePicture}
+                  alt={`${selectedMember.firstName} ${selectedMember.lastName}`}
+                  style={{
+                    width: 80,
+                    height: 80,
+                    borderRadius: '50%',
+                    objectFit: 'cover',
+                    border: '3px solid #000',
+                    marginBottom: 12,
+                  }}
+                />
+              ) : (
+                <div style={{
+                  width: 80,
+                  height: 80,
+                  borderRadius: '50%',
+                  background: colors.primary,
+                  color: colors.white,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: 32,
+                  fontWeight: 700,
+                  marginBottom: 12,
+                  border: '3px solid #000',
+                }}>
+                  {getInitials(selectedMember.firstName, selectedMember.lastName)}
+                </div>
+              )}
               <div style={{ fontWeight: 700, fontSize: 20, color: colors.primary, marginBottom: 4 }}>{selectedMember.firstName} {selectedMember.lastName}</div>
               <div style={{ fontSize: 14, color: '#666', marginBottom: 8 }}>{selectedMember.email}</div>
               <div style={{ fontSize: 13, color: '#999', marginBottom: 8 }}>{selectedMember.role ? selectedMember.role.charAt(0).toUpperCase() + selectedMember.role.slice(1) : 'Member'}</div>

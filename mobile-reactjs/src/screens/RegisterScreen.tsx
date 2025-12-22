@@ -13,6 +13,7 @@ const initialForm = {
   password: '',
   confirmPassword: '',
   phone: '',
+  countryCode: '+91',
   gender: 'male',
   house: 'Kadannamanna',
   generation: '1',
@@ -248,11 +249,12 @@ const RegisterScreen: React.FC<{ onRegisterSuccess: () => void }> = ({ onRegiste
         ...(form.email && { email: form.email }),
         password: form.password,
         phone: form.phone,
+        countryCode: form.countryCode,
         gender: form.gender,
         house: form.house,
         generation: parseInt(form.generation) || 1,
         address: form.address,
-        profession: form.profession,
+        occupation: form.profession,
         role: 'user',
         inviteToken: inviteToken, // Include the invite token
       };
@@ -298,7 +300,74 @@ const RegisterScreen: React.FC<{ onRegisterSuccess: () => void }> = ({ onRegiste
         <input style={styles.input} placeholder="First Name *" value={form.firstName} onChange={e => handleChange('firstName', e.target.value)} disabled={loading} />
         <input style={styles.input} placeholder="Last Name *" value={form.lastName} onChange={e => handleChange('lastName', e.target.value)} disabled={loading} />
         <input style={styles.input} placeholder="Email (optional)" value={form.email} onChange={e => handleChange('email', e.target.value)} disabled={loading} type="email" />
-        <input style={styles.input} placeholder="Phone Number *" value={form.phone} onChange={e => handleChange('phone', e.target.value)} disabled={loading} type="tel" />
+        
+        <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+          <select 
+            style={{ ...styles.input, marginBottom: 0, width: '35%' }} 
+            value={form.countryCode} 
+            onChange={e => handleChange('countryCode', e.target.value)} 
+            disabled={loading}
+          >
+            <option value="+91">🇮🇳 +91 India</option>
+            <option value="+971">🇦🇪 +971 UAE</option>
+            <option value="+966">🇸🇦 +966 Saudi Arabia</option>
+            <option value="+965">🇰🇼 +965 Kuwait</option>
+            <option value="+974">🇶🇦 +974 Qatar</option>
+            <option value="+968">🇴🇲 +968 Oman</option>
+            <option value="+973">🇧🇭 +973 Bahrain</option>
+            <option value="+1">🇺🇸 +1 USA/Canada</option>
+            <option value="+44">🇬🇧 +44 UK</option>
+            <option value="+61">🇦🇺 +61 Australia</option>
+            <option value="+64">🇳🇿 +64 New Zealand</option>
+            <option value="+65">🇸🇬 +65 Singapore</option>
+            <option value="+60">🇲🇾 +60 Malaysia</option>
+            <option value="+66">🇹🇭 +66 Thailand</option>
+            <option value="+63">🇵🇭 +63 Philippines</option>
+            <option value="+62">🇮🇩 +62 Indonesia</option>
+            <option value="+84">🇻🇳 +84 Vietnam</option>
+            <option value="+86">🇨🇳 +86 China</option>
+            <option value="+81">🇯🇵 +81 Japan</option>
+            <option value="+82">🇰🇷 +82 South Korea</option>
+            <option value="+92">🇵🇰 +92 Pakistan</option>
+            <option value="+880">🇧🇩 +880 Bangladesh</option>
+            <option value="+94">🇱🇰 +94 Sri Lanka</option>
+            <option value="+977">🇳🇵 +977 Nepal</option>
+            <option value="+20">🇪🇬 +20 Egypt</option>
+            <option value="+27">🇿🇦 +27 South Africa</option>
+            <option value="+49">🇩🇪 +49 Germany</option>
+            <option value="+33">🇫🇷 +33 France</option>
+            <option value="+39">🇮🇹 +39 Italy</option>
+            <option value="+34">🇪🇸 +34 Spain</option>
+            <option value="+31">🇳🇱 +31 Netherlands</option>
+            <option value="+32">🇧🇪 +32 Belgium</option>
+            <option value="+41">🇨🇭 +41 Switzerland</option>
+            <option value="+43">🇦🇹 +43 Austria</option>
+            <option value="+46">🇸🇪 +46 Sweden</option>
+            <option value="+47">🇳🇴 +47 Norway</option>
+            <option value="+45">🇩🇰 +45 Denmark</option>
+            <option value="+358">🇫🇮 +358 Finland</option>
+            <option value="+353">🇮🇪 +353 Ireland</option>
+            <option value="+351">🇵🇹 +351 Portugal</option>
+            <option value="+30">🇬🇷 +30 Greece</option>
+            <option value="+48">🇵🇱 +48 Poland</option>
+            <option value="+7">🇷🇺 +7 Russia</option>
+            <option value="+90">🇹🇷 +90 Turkey</option>
+            <option value="+972">🇮🇱 +972 Israel</option>
+            <option value="+961">🇱🇧 +961 Lebanon</option>
+            <option value="+962">🇯🇴 +962 Jordan</option>
+            <option value="+55">🇧🇷 +55 Brazil</option>
+            <option value="+52">🇲🇽 +52 Mexico</option>
+            <option value="+54">🇦🇷 +54 Argentina</option>
+          </select>
+          <input 
+            style={{ ...styles.input, marginBottom: 0, flex: 1 }} 
+            placeholder="Phone Number *" 
+            value={form.phone} 
+            onChange={e => handleChange('phone', e.target.value)} 
+            disabled={loading} 
+            type="tel" 
+          />
+        </div>
         <div style={styles.label}>Gender *</div>
         <div style={styles.radioGroup}>
           <div style={{ ...styles.radioButton, ...(form.gender === 'male' ? styles.radioButtonSelected : {}) }} onClick={() => !loading && handleChange('gender', 'male')}>

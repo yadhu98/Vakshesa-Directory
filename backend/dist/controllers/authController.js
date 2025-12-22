@@ -34,7 +34,7 @@ const login = async (req, res) => {
 exports.login = login;
 const register = async (req, res) => {
     try {
-        const { firstName, lastName, name, email, phone, password, role, familyId, house, validationCode, isSuperUser, inviteToken, isAdminCreated } = req.body;
+        const { firstName, lastName, name, email, phone, password, role, familyId, house, validationCode, isSuperUser, inviteToken, isAdminCreated, address, occupation, gender, countryCode } = req.body;
         // Support both name (mobile) and firstName/lastName (admin)
         let userFirstName = firstName;
         let userLastName = lastName;
@@ -104,11 +104,15 @@ const register = async (req, res) => {
             lastName: userLastName || '',
             email: normalizedEmail,
             phone,
+            countryCode: countryCode || '+91',
             password,
             role: finalRole,
             house,
             isSuperUser: !!allowSuperUser,
             familyId: familyId || 'family-default',
+            address: address || '',
+            occupation: occupation || '',
+            gender: gender || 'male',
         });
         // Mark invite token as used (if not super user)
         if (!allowSuperUser && inviteToken) {

@@ -23,10 +23,24 @@ const createUser = async (userData) => {
 };
 exports.createUser = createUser;
 const validateUserCredentials = async (emailOrPhone, password) => {
-    // Try to find user by email first, then by phone
+    // Try to find user by email first
     let user = await storage_1.db.findOne('users', { email: emailOrPhone.toLowerCase() });
     if (!user) {
+        // Try to find by exact phone match
         user = await storage_1.db.findOne('users', { phone: emailOrPhone });
+    }
+    if (!user) {
+        // Try to find by normalized phone (remove all non-digits and match last 10 digits)
+        const normalizedInput = emailOrPhone.replace(/\D/g, '');
+        if (normalizedInput.length >= 10) {
+            const last10Digits = normalizedInput.slice(-10);
+            // Get all users and check if any phone ends with these digits
+            const allUsers = await storage_1.db.find('users', {});
+            user = allUsers.find((u) => {
+                const userPhone = (u.phone || '').replace(/\D/g, '');
+                return userPhone.slice(-10) === last10Digits;
+            }) || null;
+        }
     }
     if (!user) {
         throw new Error('User not found');

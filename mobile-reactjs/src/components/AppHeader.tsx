@@ -12,6 +12,7 @@ interface User {
   profession?: string;
   role: string;
   familyName?: string;
+  profilePicture?: string;
 }
 
 interface AppHeaderProps {
@@ -39,10 +40,21 @@ const AppHeader: React.FC<AppHeaderProps> = ({ title, showBack = false, showBack
 
   useEffect(() => {
     // Replace AsyncStorage with localStorage for web
-    const userStr = localStorage.getItem('userData');
-    if (userStr) {
-      setUser(JSON.parse(userStr));
-    }
+    const loadUserData = () => {
+      const userStr = localStorage.getItem('userData');
+      if (userStr) {
+        setUser(JSON.parse(userStr));
+      }
+    };
+    
+    loadUserData();
+    
+    // Listen for profile updates
+    window.addEventListener('profileUpdated', loadUserData);
+    
+    return () => {
+      window.removeEventListener('profileUpdated', loadUserData);
+    };
   }, []);
 
   // Helper for initials
@@ -102,26 +114,56 @@ const AppHeader: React.FC<AppHeaderProps> = ({ title, showBack = false, showBack
         </button>
       )}
       <button onClick={() => setShowProfileModal(true)} style={{ background: 'none', border: 'none', marginLeft: 0, padding: 0, cursor: 'pointer' }}>
-        <span style={{
-          display: 'inline-flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          width: 36,
-          height: 36,
-          borderRadius: '50%',
-          background: colors.white,
-          color: colors.primary,
-          fontWeight: 700,
-          fontSize: 16,
-          border: `2px solid ${colors.white}`,
-          boxShadow: '0 1px 4px rgba(0,0,0,0.08)',
-        }}>{getInitials(user)}</span>
+        {user?.profilePicture ? (
+          <img
+            src={user.profilePicture}
+            alt="Profile"
+            style={{
+              width: 36,
+              height: 36,
+              borderRadius: '50%',
+              objectFit: 'cover',
+              border: `2px solid ${colors.white}`,
+              boxShadow: '0 1px 4px rgba(0,0,0,0.08)',
+            }}
+          />
+        ) : (
+          <span style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: 36,
+            height: 36,
+            borderRadius: '50%',
+            background: colors.white,
+            color: colors.primary,
+            fontWeight: 700,
+            fontSize: 16,
+            border: `2px solid ${colors.white}`,
+            boxShadow: '0 1px 4px rgba(0,0,0,0.08)',
+          }}>{getInitials(user)}</span>
+        )}
       </button>
       {showProfileModal && (
         <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
           <div style={{ background: colors.white, padding: 24, borderRadius: 16, minWidth: 300, maxWidth: 340, boxShadow: '0 2px 16px rgba(0,0,0,0.12)' }}>
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: 16 }}>
-              <div style={{ width: 64, height: 64, borderRadius: '50%', background: colors.primary, color: colors.white, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28, fontWeight: 700, marginBottom: 8 }}>{getInitials(user)}</div>
+              {user?.profilePicture ? (
+                <img
+                  src={user.profilePicture}
+                  alt="Profile"
+                  style={{
+                    width: 64,
+                    height: 64,
+                    borderRadius: '50%',
+                    objectFit: 'cover',
+                    border: '3px solid #000',
+                    marginBottom: 8,
+                  }}
+                />
+              ) : (
+                <div style={{ width: 64, height: 64, borderRadius: '50%', background: colors.primary, color: colors.white, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28, fontWeight: 700, marginBottom: 8 }}>{getInitials(user)}</div>
+              )}
               <div style={{ fontWeight: 700, fontSize: 20, color: colors.primary, marginBottom: 4 }}>{user ? (user.name || (user.firstName + ' ' + user.lastName)) : 'User'}</div>
               <div style={{ fontSize: 14, color: '#666', marginBottom: 8 }}>{user?.email}</div>
               <div style={{ fontSize: 13, color: '#999', marginBottom: 8 }}>{user?.role ? user.role.charAt(0).toUpperCase() + user.role.slice(1) : 'Member'}</div>

@@ -8,6 +8,7 @@ export interface IUser {
   lastName: string;
   email: string;
   phone: string;
+  countryCode?: string;
   password: string;
   role: 'user' | 'admin';
   isSuperUser?: boolean;
@@ -66,6 +67,10 @@ const userSchema = new Schema<IUser>(
       type: String,
       required: true,
       unique: true,
+    },
+    countryCode: {
+      type: String,
+      default: '+91',
     },
     password: {
       type: String,
