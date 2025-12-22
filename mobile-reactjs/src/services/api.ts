@@ -62,7 +62,7 @@ export const userService = {
     axiosInstance.get(`/users/${userId}`),
   getFamilyTree: (familyId: string) =>
     axiosInstance.get(`/users/family/${familyId}/tree`),
-  searchUsers: (query: string, limit: number = 20) =>
+  searchUsers: (query: string, limit: number = 1000) =>
     axiosInstance.get('/users/search', { params: { q: query, limit } }),
   updateUserProfile: (userId: string, data: any) =>
     axiosInstance.put(`/users/${userId}/profile`, data),

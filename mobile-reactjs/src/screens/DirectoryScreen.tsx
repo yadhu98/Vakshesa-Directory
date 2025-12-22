@@ -55,7 +55,7 @@ const DirectoryScreen: React.FC = () => {
 
   useEffect(() => {
     setLoading(true);
-    userService.searchUsers('', 100)
+    userService.searchUsers('', 1000)
       .then(res => {
         setMembers(res.data.results || []);
         setFilteredMembers(res.data.results || []);
