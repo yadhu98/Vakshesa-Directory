@@ -64,7 +64,7 @@ const getFamilyTreeStructure = async (req, res) => {
 exports.getFamilyTreeStructure = getFamilyTreeStructure;
 const search = async (req, res) => {
     try {
-        const { q = '', limit = '20' } = req.query;
+        const { q = '', limit = '1000' } = req.query;
         // If q is empty, return all users up to limit
         const results = await (0, dataService_1.searchUsers)(String(q), parseInt(String(limit)));
         res.json({

@@ -16,6 +16,10 @@ interface User {
   familyId: string;
   isActive: boolean;
   address?: string;
+  house?: string;
+  gender?: string;
+  generation?: number;
+  isAlive?: boolean;
 }
 
 interface EditUser {
@@ -51,6 +55,10 @@ const Users: React.FC = () => {
   const [importLoading, setImportLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [roleFilter, setRoleFilter] = useState('all');
+  const [houseFilter, setHouseFilter] = useState('all');
+  const [genderFilter, setGenderFilter] = useState('all');
+  const [generationFilter, setGenerationFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState('all');
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
@@ -263,7 +271,15 @@ const Users: React.FC = () => {
       user.lastName.toLowerCase().includes(searchQuery.toLowerCase()) ||
       user.email.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesRole = roleFilter === 'all' || user.role === roleFilter;
-    return matchesSearch && matchesRole;
+    const matchesHouse = houseFilter === 'all' || user.house === houseFilter;
+    const matchesGender = genderFilter === 'all' || user.gender === genderFilter;
+    const matchesGeneration = generationFilter === 'all' || user.generation?.toString() === generationFilter;
+    const matchesStatus = statusFilter === 'all' || 
+      (statusFilter === 'active' && user.isActive) ||
+      (statusFilter === 'inactive' && !user.isActive) ||
+      (statusFilter === 'alive' && user.isAlive !== false) ||
+      (statusFilter === 'deceased' && user.isAlive === false);
+    return matchesSearch && matchesRole && matchesHouse && matchesGender && matchesGeneration && matchesStatus;
   });
 
   return (
@@ -294,11 +310,11 @@ const Users: React.FC = () => {
         </div>
 
         <div className="bg-white p-4 rounded-lg shadow space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             <input
               type="text"
-              placeholder="Search users..."
-              className="input"
+              placeholder="Search by name or email..."
+              className="input md:col-span-2 lg:col-span-3"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
@@ -307,6 +323,50 @@ const Users: React.FC = () => {
               <option value="user">Users</option>
               <option value="admin">Admins</option>
             </select>
+            <select className="input" value={houseFilter} onChange={(e) => setHouseFilter(e.target.value)}>
+              <option value="all">All Houses</option>
+              <option value="Kadannamanna">Kadannamanna</option>
+              <option value="Ayiranazhi">Ayiranazhi</option>
+              <option value="Aripra">Aripra</option>
+              <option value="Mankada">Mankada</option>
+            </select>
+            <select className="input" value={genderFilter} onChange={(e) => setGenderFilter(e.target.value)}>
+              <option value="all">All Genders</option>
+              <option value="male">Male</option>
+              <option value="female">Female</option>
+              <option value="other">Other</option>
+            </select>
+            <select className="input" value={generationFilter} onChange={(e) => setGenerationFilter(e.target.value)}>
+              <option value="all">All Generations</option>
+              {Array.from(new Set(users.map(u => u.generation).filter(g => g !== undefined))).sort((a, b) => (a || 0) - (b || 0)).map(gen => (
+                <option key={gen} value={gen?.toString()}>{`Generation ${gen}`}</option>
+              ))}
+            </select>
+            <select className="input" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+              <option value="all">All Status</option>
+              <option value="active">Active</option>
+              <option value="inactive">Inactive</option>
+              <option value="alive">Alive</option>
+              <option value="deceased">Deceased</option>
+            </select>
+            {(roleFilter !== 'all' || houseFilter !== 'all' || genderFilter !== 'all' || generationFilter !== 'all' || statusFilter !== 'all' || searchQuery) && (
+              <button
+                onClick={() => {
+                  setRoleFilter('all');
+                  setHouseFilter('all');
+                  setGenderFilter('all');
+                  setGenerationFilter('all');
+                  setStatusFilter('all');
+                  setSearchQuery('');
+                }}
+                className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 text-sm font-medium"
+              >
+                Clear Filters
+              </button>
+            )}
+          </div>
+          <div className="text-sm text-gray-600">
+            Showing {filteredUsers.length} of {users.length} users
           </div>
 
           {loading ? (

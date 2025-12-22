@@ -183,7 +183,7 @@ router.get('/users', auth_1.authMiddleware, async (req, res) => {
         const filtered = users.map(u => {
             const { password, ...userWithoutPassword } = u;
             return userWithoutPassword;
-        }).slice(0, 100);
+        });
         res.json({ count: filtered.length, users: filtered });
     }
     catch (error) {

@@ -32,7 +32,7 @@ export const getFamilyTreeStructure = async (req: AuthRequest, res: Response): P
 
 export const search = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const { q = '', limit = '20' } = req.query;
+    const { q = '', limit = '1000' } = req.query;
 
     // If q is empty, return all users up to limit
     const results = await searchUsers(String(q), parseInt(String(limit)));
