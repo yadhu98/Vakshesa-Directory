@@ -121,7 +121,7 @@ exports.toggleUserStatus = toggleUserStatus;
 const updateUser = async (req, res) => {
     try {
         const { userId } = req.params;
-        const { firstName, lastName, email, phone, role, isActive, gender, house, occupation, address, linkedin, instagram, facebook, countryCode, profilePicture, fatherId, motherId, spouseId, children } = req.body;
+        const { firstName, lastName, email, phone, role, isActive, gender, house, occupation, address, linkedin, instagram, facebook, countryCode, profilePicture, fatherId, motherId, spouseId, children, siblings } = req.body;
         const { db } = await Promise.resolve().then(() => __importStar(require('../config/storage')));
         const user = await db.findById('users', userId);
         if (!user) {
@@ -172,6 +172,8 @@ const updateUser = async (req, res) => {
             updates.spouseId = spouseId || null;
         if (children !== undefined)
             updates.children = children || [];
+        if (siblings !== undefined)
+            updates.siblings = siblings || [];
         // Only admins can update role and isActive
         if (req.user?.role === 'admin' || req.user?.isSuperUser) {
             if (role !== undefined)

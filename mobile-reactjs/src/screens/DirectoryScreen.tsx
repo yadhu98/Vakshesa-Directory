@@ -30,6 +30,7 @@ interface Member {
   motherId?: string;
   spouseId?: string;
   children?: string[];
+  siblings?: string[];
 }
 
 const colors = {
@@ -61,7 +62,8 @@ const DirectoryScreen: React.FC = () => {
     mother?: Member;
     spouse?: Member;
     children: Member[];
-  }>({ children: [] });
+    siblings: Member[];
+  }>({ children: [], siblings: [] });
 
   const houses: House[] = ['All', 'Kadannamanna', 'Mankada', 'Ayiranazhi', 'Aripra'];
 
@@ -112,8 +114,9 @@ const DirectoryScreen: React.FC = () => {
     setModalVisible(true);
     
     // Load family member details
-    const loadedFamily: any = { children: [] };
+    const loadedFamily: any = { children: [], siblings: [] };
     
+    // Load direct relationships (stored IDs)
     if (member.fatherId) {
       try {
         const res = await userService.getUserProfile(member.fatherId);
@@ -158,6 +161,59 @@ const DirectoryScreen: React.FC = () => {
           console.error('Error loading child:', err);
         }
       }
+    }
+    
+    if (member.siblings && member.siblings.length > 0) {
+      for (const siblingId of member.siblings) {
+        try {
+          const res = await userService.getUserProfile(siblingId);
+          if (res?.data) {
+            loadedFamily.siblings.push(res.data);
+          }
+        } catch (err) {
+          console.error('Error loading sibling:', err);
+        }
+      }
+    }
+    
+    // Load reverse relationships (find users who reference this member)
+    try {
+      // Find users who have this person as their father
+      const childrenRes = await userService.searchUsers('', 100);
+      const allUsers = childrenRes?.data?.results || [];
+      
+      // Find children (users who have this member as father or mother)
+      const reverseChildren = allUsers.filter((u: Member) => 
+        u.fatherId === member._id || u.motherId === member._id
+      );
+      // Add reverse children if not already in the list
+      reverseChildren.forEach((child: Member) => {
+        if (!loadedFamily.children.find((c: Member) => c._id === child._id)) {
+          loadedFamily.children.push(child);
+        }
+      });
+      
+      // Find spouse (user who has this member as spouse)
+      if (!loadedFamily.spouse) {
+        const reverseSpouse = allUsers.find((u: Member) => u.spouseId === member._id);
+        if (reverseSpouse) {
+          loadedFamily.spouse = reverseSpouse;
+        }
+      }
+      
+      // Find siblings (users who have this member in their siblings array)
+      const reverseSiblings = allUsers.filter((u: Member) => 
+        u.siblings && u.siblings.includes(member._id)
+      );
+      // Add reverse siblings if not already in the list
+      reverseSiblings.forEach((sibling: Member) => {
+        if (!loadedFamily.siblings.find((s: Member) => s._id === sibling._id)) {
+          loadedFamily.siblings.push(sibling);
+        }
+      });
+      
+    } catch (err) {
+      console.error('Error loading reverse relationships:', err);
     }
     
     setFamilyMembers(loadedFamily);
@@ -380,7 +436,7 @@ const DirectoryScreen: React.FC = () => {
               </div>
             )}
             {/* Family Section */}
-            {(familyMembers.father || familyMembers.mother || familyMembers.spouse || familyMembers.children.length > 0) && (
+            {(familyMembers.father || familyMembers.mother || familyMembers.spouse || familyMembers.children.length > 0 || familyMembers.siblings.length > 0) && (
               <div style={{ marginBottom: 16, paddingTop: 12, borderTop: '1px solid #E0E0E0' }}>
                 <div style={{ fontSize: 13, fontWeight: 600, color: '#666', marginBottom: 8 }}>Family</div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -508,6 +564,38 @@ const DirectoryScreen: React.FC = () => {
                         <div style={{ fontSize: 11, color: '#999' }}>Child</div>
                         <div style={{ fontSize: 14, fontWeight: 500, color: '#333' }}>
                           {child.firstName} {child.lastName}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                  {familyMembers.siblings.map((sibling) => (
+                    <div key={sibling._id} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      {sibling.profilePicture ? (
+                        <img 
+                          src={sibling.profilePicture} 
+                          alt="Sibling"
+                          style={{ width: 32, height: 32, borderRadius: '50%', objectFit: 'cover' }}
+                        />
+                      ) : (
+                        <div style={{ 
+                          width: 32, 
+                          height: 32, 
+                          borderRadius: '50%', 
+                          background: '#000', 
+                          color: '#fff',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontSize: 12,
+                          fontWeight: 600
+                        }}>
+                          {sibling.firstName.charAt(0)}
+                        </div>
+                      )}
+                      <div>
+                        <div style={{ fontSize: 11, color: '#999' }}>Sibling</div>
+                        <div style={{ fontSize: 14, fontWeight: 500, color: '#333' }}>
+                          {sibling.firstName} {sibling.lastName}
                         </div>
                       </div>
                     </div>

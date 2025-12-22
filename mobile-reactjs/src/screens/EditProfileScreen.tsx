@@ -23,6 +23,7 @@ interface EditForm {
   motherId?: string;
   spouseId?: string;
   children?: string[];
+  siblings?: string[];
 }
 
 interface FamilyMember {
@@ -58,13 +59,15 @@ const EditProfileScreen: React.FC = () => {
     mother?: FamilyMember;
     spouse?: FamilyMember;
     children: FamilyMember[];
+    siblings: FamilyMember[];
   }>({
-    children: []
+    children: [],
+    siblings: []
   });
 
   const [searchModalConfig, setSearchModalConfig] = useState<{
     isOpen: boolean;
-    type: 'father' | 'mother' | 'spouse' | 'child';
+    type: 'father' | 'mother' | 'spouse' | 'child' | 'sibling';
     title: string;
   }>({
     isOpen: false,
@@ -114,10 +117,11 @@ const EditProfileScreen: React.FC = () => {
           motherId: user.motherId || '',
           spouseId: user.spouseId || '',
           children: user.children || [],
+          siblings: user.siblings || [],
         });
 
         // Load family member details if IDs exist
-        const loadedFamilyMembers: any = { children: [] };
+        const loadedFamilyMembers: any = { children: [], siblings: [] };
         
         if (user.fatherId) {
           try {
@@ -185,6 +189,24 @@ const EditProfileScreen: React.FC = () => {
           }
         }
 
+        if (user.siblings && user.siblings.length > 0) {
+          for (const siblingId of user.siblings) {
+            try {
+              const siblingRes = await userService.getUserProfile(siblingId);
+              if (siblingRes?.data) {
+                loadedFamilyMembers.siblings.push({
+                  _id: siblingRes.data._id,
+                  firstName: siblingRes.data.firstName,
+                  lastName: siblingRes.data.lastName,
+                  profilePicture: siblingRes.data.profilePicture
+                });
+              }
+            } catch (err) {
+              console.error('Error loading sibling:', err);
+            }
+          }
+        }
+
         setFamilyMembers(loadedFamilyMembers);
       } catch (err) {
         console.error('Error loading profile:', err);
@@ -215,6 +237,7 @@ const EditProfileScreen: React.FC = () => {
         motherId: familyMembers.mother?._id || '',
         spouseId: familyMembers.spouse?._id || '',
         children: familyMembers.children.map(child => child._id),
+        siblings: familyMembers.siblings.map(sibling => sibling._id),
       };
       
       const response = await userService.updateUserProfile(userId, updateData);
@@ -240,12 +263,13 @@ const EditProfileScreen: React.FC = () => {
   };
 
   // Family relationship management functions
-  const openSearchModal = (type: 'father' | 'mother' | 'spouse' | 'child') => {
+  const openSearchModal = (type: 'father' | 'mother' | 'spouse' | 'child' | 'sibling') => {
     const titles = {
       father: 'Select Father',
       mother: 'Select Mother',
       spouse: 'Select Spouse',
-      child: 'Add Child'
+      child: 'Add Child',
+      sibling: 'Add Sibling'
     };
     setSearchModalConfig({
       isOpen: true,
@@ -266,6 +290,8 @@ const EditProfileScreen: React.FC = () => {
       const updated = { ...prev };
       if (searchModalConfig.type === 'child') {
         updated.children = [...prev.children, member];
+      } else if (searchModalConfig.type === 'sibling') {
+        updated.siblings = [...prev.siblings, member];
       } else {
         updated[searchModalConfig.type] = member;
       }
@@ -283,6 +309,8 @@ const EditProfileScreen: React.FC = () => {
         updated.spouseId = member._id;
       } else if (searchModalConfig.type === 'child') {
         updated.children = [...(prev.children || []), member._id];
+      } else if (searchModalConfig.type === 'sibling') {
+        updated.siblings = [...(prev.siblings || []), member._id];
       }
       return updated;
     });
@@ -290,7 +318,7 @@ const EditProfileScreen: React.FC = () => {
     setSearchModalConfig({ isOpen: false, type: 'father', title: '' });
   };
 
-  const removeFamilyMember = (type: 'father' | 'mother' | 'spouse', childId?: string) => {
+  const removeFamilyMember = (type: 'father' | 'mother' | 'spouse' | 'child' | 'sibling', id?: string) => {
     if (type === 'father' || type === 'mother' || type === 'spouse') {
       setFamilyMembers(prev => {
         const updated = { ...prev };
@@ -302,15 +330,25 @@ const EditProfileScreen: React.FC = () => {
         ...prev,
         [`${type}Id`]: ''
       }));
-    } else if (childId) {
+    } else if (type === 'child' && id) {
       setFamilyMembers(prev => ({
         ...prev,
-        children: prev.children.filter(c => c._id !== childId)
+        children: prev.children.filter(c => c._id !== id)
       }));
       
       setForm(prev => ({
         ...prev,
-        children: (prev.children || []).filter(id => id !== childId)
+        children: (prev.children || []).filter(cId => cId !== id)
+      }));
+    } else if (type === 'sibling' && id) {
+      setFamilyMembers(prev => ({
+        ...prev,
+        siblings: prev.siblings.filter(s => s._id !== id)
+      }));
+      
+      setForm(prev => ({
+        ...prev,
+        siblings: (prev.siblings || []).filter(sId => sId !== id)
       }));
     }
   };
@@ -910,7 +948,7 @@ const EditProfileScreen: React.FC = () => {
                   </div>
                   <button
                     type="button"
-                    onClick={() => removeFamilyMember('spouse', child._id)}
+                    onClick={() => removeFamilyMember('child', child._id)}
                     style={{ 
                       background: 'transparent', 
                       border: 'none', 
@@ -943,6 +981,89 @@ const EditProfileScreen: React.FC = () => {
               >
                 <Plus size={18} />
                 Add Child
+              </button>
+            </div>
+
+            {/* Siblings */}
+            <div style={{ marginBottom: 20 }}>
+              <div style={{ fontSize: 14, fontWeight: 500, marginBottom: 8, color: '#666' }}>
+                Siblings
+              </div>
+              {familyMembers.siblings.map((sibling) => (
+                <div 
+                  key={sibling._id}
+                  style={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    padding: 12, 
+                    background: '#F5F5F5', 
+                    borderRadius: 8,
+                    justifyContent: 'space-between',
+                    marginBottom: 8
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                    {sibling.profilePicture ? (
+                      <img 
+                        src={sibling.profilePicture} 
+                        alt="Sibling"
+                        style={{ width: 40, height: 40, borderRadius: '50%', objectFit: 'cover' }}
+                      />
+                    ) : (
+                      <div style={{ 
+                        width: 40, 
+                        height: 40, 
+                        borderRadius: '50%', 
+                        background: '#000', 
+                        color: '#fff',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: 16,
+                        fontWeight: 600
+                      }}>
+                        {sibling.firstName.charAt(0)}
+                      </div>
+                    )}
+                    <span style={{ fontSize: 16, fontWeight: 500 }}>
+                      {sibling.firstName} {sibling.lastName}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => removeFamilyMember('sibling', sibling._id)}
+                    style={{ 
+                      background: 'transparent', 
+                      border: 'none', 
+                      cursor: 'pointer',
+                      padding: 4
+                    }}
+                  >
+                    <X size={20} color="#666" />
+                  </button>
+                </div>
+              ))}
+              <button
+                type="button"
+                onClick={() => openSearchModal('sibling')}
+                style={{
+                  width: '100%',
+                  padding: 12,
+                  background: '#F5F5F5',
+                  border: '1px dashed #CCC',
+                  borderRadius: 8,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 8,
+                  cursor: 'pointer',
+                  fontSize: 14,
+                  color: '#666',
+                  marginTop: 8
+                }}
+              >
+                <Plus size={18} />
+                Add Sibling
               </button>
             </div>
 

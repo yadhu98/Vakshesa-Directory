@@ -97,7 +97,7 @@ export const updateUser = async (req: AuthRequest, res: Response): Promise<void>
     const { 
       firstName, lastName, email, phone, role, isActive, gender, house, occupation, address, 
       linkedin, instagram, facebook, countryCode, profilePicture,
-      fatherId, motherId, spouseId, children 
+      fatherId, motherId, spouseId, children, siblings 
     } = req.body;
 
     const { db } = await import('../config/storage');
@@ -137,6 +137,7 @@ export const updateUser = async (req: AuthRequest, res: Response): Promise<void>
     if (motherId !== undefined) updates.motherId = motherId || null;
     if (spouseId !== undefined) updates.spouseId = spouseId || null;
     if (children !== undefined) updates.children = children || [];
+    if (siblings !== undefined) updates.siblings = siblings || [];
     
     // Only admins can update role and isActive
     if (req.user?.role === 'admin' || req.user?.isSuperUser) {
