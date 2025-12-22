@@ -1,6 +1,10 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { authService } from '../services/api';
+import axios from 'axios';
+
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5001/api';
 
 const initialForm = {
   firstName: '',
@@ -162,7 +166,40 @@ const RegisterScreen: React.FC<{ onRegisterSuccess: () => void }> = ({ onRegiste
   const [form, setForm] = useState(initialForm);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [inviteToken, setInviteToken] = useState('');
+  const [inviteValid, setInviteValid] = useState<boolean | null>(null);
+  const [inviterName, setInviterName] = useState('');
+  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+
+  // Validate invite token on mount
+  useEffect(() => {
+    const token = searchParams.get('invite');
+    if (!token) {
+      setError('Invalid or missing invite link. Registration requires an invitation from an existing member.');
+      setInviteValid(false);
+      return;
+    }
+
+    setInviteToken(token);
+    
+    // Validate the invite token
+    axios.get(`${API_URL}/invites/validate/${token}`)
+      .then(response => {
+        if (response.data.valid) {
+          setInviteValid(true);
+          setInviterName(response.data.createdByName);
+          setError('');
+        } else {
+          setInviteValid(false);
+          setError(response.data.message || 'Invalid invite token');
+        }
+      })
+      .catch(err => {
+        setInviteValid(false);
+        setError(err?.response?.data?.message || 'Failed to validate invite token');
+      });
+  }, [searchParams]);
 
   const handleChange = (key: string, value: string) => {
     setForm({ ...form, [key]: value });
@@ -173,8 +210,8 @@ const RegisterScreen: React.FC<{ onRegisterSuccess: () => void }> = ({ onRegiste
       setError('First and last name are required');
       return false;
     }
-    if (!form.email || !/\S+@\S+\.\S+/.test(form.email)) {
-      setError('Valid email is required');
+    if (form.email && !/\S+@\S+\.\S+/.test(form.email)) {
+      setError('Please provide a valid email address');
       return false;
     }
     if (!form.password || form.password.length < 8) {
@@ -195,13 +232,20 @@ const RegisterScreen: React.FC<{ onRegisterSuccess: () => void }> = ({ onRegiste
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    
+    if (!inviteValid) {
+      setError('Invalid invite token. Please use a valid invitation link.');
+      return;
+    }
+    
     if (!validateForm()) return;
+    
     setLoading(true);
     try {
       const registrationData = {
         firstName: form.firstName,
         lastName: form.lastName,
-        email: form.email,
+        ...(form.email && { email: form.email }),
         password: form.password,
         phone: form.phone,
         gender: form.gender,
@@ -210,6 +254,7 @@ const RegisterScreen: React.FC<{ onRegisterSuccess: () => void }> = ({ onRegiste
         address: form.address,
         profession: form.profession,
         role: 'user',
+        inviteToken: inviteToken, // Include the invite token
       };
       await authService.register(registrationData);
       onRegisterSuccess();
@@ -224,15 +269,36 @@ const RegisterScreen: React.FC<{ onRegisterSuccess: () => void }> = ({ onRegiste
     <div style={styles.container}>
       <form style={styles.content} onSubmit={handleRegister}>
         <div style={styles.title}>Create Account</div>
-        <div style={styles.subtitle}>Join the Vksha Family</div>
+        <div style={styles.subtitle}>
+          {inviteValid ? `Invited by ${inviterName}` : 'Join the Vakshesa Family'}
+        </div>
         {error && (
           <div style={styles.errorContainer}><span style={styles.errorText}>{error}</span></div>
         )}
-        <div style={styles.sectionTitle}>Personal Information</div>
+        
+        {inviteValid === false && (
+          <div style={{ marginTop: 16, textAlign: 'center' }}>
+            <button
+              type="button"
+              style={{
+                ...styles.button,
+                background: '#666',
+                marginTop: 0,
+              }}
+              onClick={() => navigate('/')}
+            >
+              Return to Login
+            </button>
+          </div>
+        )}
+        
+        {inviteValid && (
+          <>
+            <div style={styles.sectionTitle}>Personal Information</div>
         <input style={styles.input} placeholder="First Name *" value={form.firstName} onChange={e => handleChange('firstName', e.target.value)} disabled={loading} />
         <input style={styles.input} placeholder="Last Name *" value={form.lastName} onChange={e => handleChange('lastName', e.target.value)} disabled={loading} />
-        <input style={styles.input} placeholder="Email *" value={form.email} onChange={e => handleChange('email', e.target.value)} disabled={loading} type="email" />
-        <input style={styles.input} placeholder="Phone (with country code) *" value={form.phone} onChange={e => handleChange('phone', e.target.value)} disabled={loading} type="tel" />
+        <input style={styles.input} placeholder="Email (optional)" value={form.email} onChange={e => handleChange('email', e.target.value)} disabled={loading} type="email" />
+        <input style={styles.input} placeholder="Phone Number *" value={form.phone} onChange={e => handleChange('phone', e.target.value)} disabled={loading} type="tel" />
         <div style={styles.label}>Gender *</div>
         <div style={styles.radioGroup}>
           <div style={{ ...styles.radioButton, ...(form.gender === 'male' ? styles.radioButtonSelected : {}) }} onClick={() => !loading && handleChange('gender', 'male')}>
@@ -271,6 +337,8 @@ const RegisterScreen: React.FC<{ onRegisterSuccess: () => void }> = ({ onRegiste
           {loading ? 'Creating Account...' : 'Create Account'}
         </button>
         <div style={styles.linkButton} onClick={() => navigate('/')}>Already have an account? Sign In</div>
+          </>
+        )}
       </form>
     </div>
   );

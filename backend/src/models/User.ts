@@ -33,6 +33,11 @@ export interface IUser {
   address?: string;
   notes?: string;
   
+  // Social media links
+  linkedin?: string;
+  instagram?: string;
+  facebook?: string;
+  
   createdAt: Date;
   updatedAt: Date;
 }
@@ -51,8 +56,9 @@ const userSchema = new Schema<IUser>(
     },
     email: {
       type: String,
-      required: true,
+      required: false,
       unique: true,
+      sparse: true,
       lowercase: true,
       trim: true,
     },
@@ -143,6 +149,18 @@ const userSchema = new Schema<IUser>(
       trim: true,
     },
     notes: {
+      type: String,
+      trim: true,
+    },
+    linkedin: {
+      type: String,
+      trim: true,
+    },
+    instagram: {
+      type: String,
+      trim: true,
+    },
+    facebook: {
       type: String,
       trim: true,
     },

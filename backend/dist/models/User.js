@@ -15,8 +15,9 @@ const userSchema = new mongoose_1.Schema({
     },
     email: {
         type: String,
-        required: true,
+        required: false,
         unique: true,
+        sparse: true,
         lowercase: true,
         trim: true,
     },
@@ -105,6 +106,18 @@ const userSchema = new mongoose_1.Schema({
         trim: true,
     },
     notes: {
+        type: String,
+        trim: true,
+    },
+    linkedin: {
+        type: String,
+        trim: true,
+    },
+    instagram: {
+        type: String,
+        trim: true,
+    },
+    facebook: {
         type: String,
         trim: true,
     },

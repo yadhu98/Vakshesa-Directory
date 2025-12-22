@@ -1,90 +1,20 @@
 
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { authService } from '../services/api';
 
 interface LoginScreenProps {
   onLoginSuccess: () => void;
 }
 
-const styles = {
-  container: {
-    minHeight: '100vh',
-    background: '#667eea',
-    display: 'flex',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  content: {
-    padding: 24,
-    background: 'white',
-    borderRadius: 16,
-    width: '100%',
-    maxWidth: 340,
-    boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    textAlign: 'center',
-    color: '#333',
-    marginBottom: 8,
-  },
-  subtitle: {
-    textAlign: 'center',
-    color: '#666',
-    marginBottom: 24,
-  },
-  input: {
-    width: '100%',
-    borderWidth: 1,
-    borderStyle: 'solid',
-    borderColor: '#ddd',
-    padding: 12,
-    borderRadius: 8,
-    marginBottom: 12,
-    fontSize: 16,
-    color: '#333',
-    outline: 'none',
-    boxSizing: 'border-box',
-  },
-  button: {
-    background: '#667eea',
-    padding: 14,
-    borderRadius: 8,
-    marginTop: 16,
-    alignItems: 'center',
-    border: 'none',
-    width: '100%',
-    color: 'white',
-    fontSize: 16,
-    fontWeight: 'bold',
-    cursor: 'pointer',
-    transition: 'opacity 0.2s',
-  },
-  buttonDisabled: {
-    opacity: 0.6,
-    cursor: 'not-allowed',
-  },
-  errorContainer: {
-    background: '#fee',
-    border: '1px solid #fcc',
-    padding: 12,
-    borderRadius: 8,
-    marginBottom: 16,
-    textAlign: 'center',
-  },
-  errorText: {
-    color: '#c00',
-    fontSize: 14,
-  },
-  register: {
-    marginTop: 16,
-    textAlign: 'center',
-    color: '#667eea',
-    fontWeight: 'bold',
-    cursor: 'pointer',
-    fontSize: 15,
+// Shared theme colors
+const colors = {
+  primary: '#000000',
+  white: '#FFFFFF',
+  gray: {
+    light: '#F5F5F5',
+    border: '#E0E0E0',
+    medium: '#999999',
+    dark: '#666666',
   },
 };
 
@@ -93,14 +23,20 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const navigate = useNavigate();
 
-    const handleLogin = async () => {
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!email || !password) {
+      setError('Please fill in all fields');
+      return;
+    }
+
     setError('');
     setLoading(true);
     try {
       await authService.login(email, password);
-        onLoginSuccess();
+      onLoginSuccess();
     } catch (err: any) {
       setError(err?.response?.data?.message || 'Login failed');
     } finally {
@@ -109,47 +45,183 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
   };
 
   return (
-    <div style={styles.container as React.CSSProperties}>
-      <div style={styles.content as React.CSSProperties}>
-        <div style={styles.title as React.CSSProperties}>Vakshesa Directory</div>
-        <div style={styles.subtitle as React.CSSProperties}>Family Member Portal</div>
-        {error && (
-          <div style={styles.errorContainer as React.CSSProperties}>
-            <span style={styles.errorText as React.CSSProperties}>{error}</span>
+    <div style={styles.container}>
+      <div style={styles.card}>
+        {/* Header with Logo */}
+        <div style={styles.header}>
+          <h1 style={styles.title}>Vakshesa Family Directory</h1>
+          
+          {/* Logo Container */}
+          <div style={styles.logoContainer}>
+            <img 
+              src="/vakshesa-logo.png" 
+              alt="Vakshesa Logo" 
+              style={styles.logoImage}
+              onError={(e) => {
+                // Fallback to placeholder if image fails to load
+                (e.target as HTMLImageElement).style.display = 'none';
+                const parent = (e.target as HTMLElement).parentElement;
+                if (parent) {
+                  parent.innerHTML = '<span style="font-size: 20px; font-weight: 600; color: #666;">LOGO</span>';
+                }
+              }}
+            />
           </div>
-        )}
-        <input
-          style={styles.input as React.CSSProperties}
-          type="email"
-          placeholder="Email"
-          value={email}
-          onChange={e => setEmail(e.target.value)}
-          disabled={loading}
-        />
-        <input
-          style={styles.input as React.CSSProperties}
-          type="password"
-          placeholder="Password"
-          value={password}
-          onChange={e => setPassword(e.target.value)}
-          disabled={loading}
-        />
-        <button
-          style={{ ...styles.button, ...(loading ? styles.buttonDisabled : {}) } as React.CSSProperties}
-          onClick={handleLogin}
-          disabled={loading}
-        >
-          {loading ? 'Logging in...' : 'Login'}
-        </button>
-        <div
-          style={styles.register as React.CSSProperties}
-          onClick={() => navigate('/register')}
-        >
-          New here? Register
+          
+          <h2 style={styles.subtitle}>Welcome back</h2>
+          <p style={styles.description}>
+            Enter your email or phone number to sign in
+          </p>
         </div>
+
+        {/* Form Section */}
+        <form onSubmit={handleLogin} style={styles.form}>
+          {error && (
+            <div style={styles.errorContainer}>
+              <p style={styles.errorText}>{error}</p>
+            </div>
+          )}
+
+          <input
+            type="text"
+            placeholder="Email or Phone Number"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            style={styles.input}
+            disabled={loading}
+          />
+
+          <input
+            type="password"
+            placeholder="Password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            style={styles.input}
+            disabled={loading}
+          />
+
+          <button
+            type="submit"
+            style={{
+              ...styles.primaryButton,
+              ...(loading ? styles.buttonDisabled : {}),
+            }}
+            disabled={loading}
+          >
+            {loading ? 'Loading...' : 'Continue'}
+          </button>
+        </form>
       </div>
     </div>
   );
+};
+
+const styles: { [key: string]: React.CSSProperties } = {
+  container: {
+    minHeight: '100vh',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.gray.light,
+    padding: '24px',
+  },
+  card: {
+    width: '100%',
+    maxWidth: '480px',
+    backgroundColor: colors.white,
+    borderRadius: '16px',
+    padding: '48px 32px',
+    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
+  },
+  header: {
+    textAlign: 'center',
+    marginBottom: '32px',
+  },
+  title: {
+    fontSize: '24px',
+    fontWeight: '700',
+    color: colors.primary,
+    marginBottom: '24px',
+  },
+  logoContainer: {
+    width: '150px',
+    height: '150px',
+    backgroundColor: colors.white,
+    borderRadius: '16px',
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+    margin: '0 auto 24px',
+    padding: '20px',
+    border: `2px solid ${colors.gray.border}`,
+    overflow: 'hidden',
+  },
+  logoImage: {
+    width: '100%',
+    height: '100%',
+    objectFit: 'contain',
+  },
+  logoPlaceholder: {
+    fontSize: '20px',
+    fontWeight: '600',
+    color: colors.gray.dark,
+  },
+  subtitle: {
+    fontSize: '20px',
+    fontWeight: '700',
+    color: colors.primary,
+    marginBottom: '8px',
+  },
+  description: {
+    fontSize: '14px',
+    color: colors.gray.dark,
+    lineHeight: '21px',
+  },
+  form: {
+    marginTop: '24px',
+  },
+  errorContainer: {
+    backgroundColor: '#FEE2E2',
+    border: '1px solid #FCA5A5',
+    borderRadius: '8px',
+    padding: '12px',
+    marginBottom: '16px',
+  },
+  errorText: {
+    color: '#DC2626',
+    fontSize: '14px',
+    margin: 0,
+  },
+  input: {
+    width: '100%',
+    backgroundColor: colors.gray.light,
+    border: `1px solid ${colors.gray.border}`,
+    borderRadius: '12px',
+    padding: '14px 16px',
+    fontSize: '16px',
+    color: colors.primary,
+    marginBottom: '12px',
+    outline: 'none',
+    transition: 'border-color 0.2s',
+    boxSizing: 'border-box',
+  },
+  primaryButton: {
+    width: '100%',
+    backgroundColor: colors.primary,
+    color: colors.white,
+    border: 'none',
+    borderRadius: '12px',
+    padding: '16px 24px',
+    fontSize: '16px',
+    fontWeight: '600',
+    cursor: 'pointer',
+    marginTop: '8px',
+    transition: 'opacity 0.2s',
+  },
+  buttonDisabled: {
+    opacity: 0.5,
+    cursor: 'not-allowed',
+  },
 };
 
 export default LoginScreen;

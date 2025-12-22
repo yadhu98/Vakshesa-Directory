@@ -94,7 +94,7 @@ export const toggleUserStatus = async (req: AuthRequest, res: Response): Promise
 export const updateUser = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const { userId } = req.params;
-    const { firstName, lastName, email, phone, role, isActive } = req.body;
+    const { firstName, lastName, email, phone, role, isActive, gender, house, occupation, address, linkedin, instagram, facebook } = req.body;
 
     const { db } = await import('../config/storage');
     const user = await db.findById('users', userId);
@@ -118,17 +118,33 @@ export const updateUser = async (req: AuthRequest, res: Response): Promise<void>
     if (lastName !== undefined) updates.lastName = lastName;
     if (email !== undefined) updates.email = email;
     if (phone !== undefined) updates.phone = phone;
-    if (role !== undefined) updates.role = role;
-    if (isActive !== undefined) updates.isActive = isActive;
+    if (gender !== undefined) updates.gender = gender;
+    if (house !== undefined) updates.house = house;
+    if (occupation !== undefined) updates.occupation = occupation;
+    if (address !== undefined) updates.address = address;
+    if (linkedin !== undefined) updates.linkedin = linkedin;
+    if (instagram !== undefined) updates.instagram = instagram;
+    if (facebook !== undefined) updates.facebook = facebook;
+    
+    // Only admins can update role and isActive
+    if (req.user?.role === 'admin' || req.user?.isSuperUser) {
+      if (role !== undefined) updates.role = role;
+      if (isActive !== undefined) updates.isActive = isActive;
+    }
 
     await db.updateOne('users', { _id: userId }, updates);
 
     const updatedUser = await db.findById('users', userId);
+    
+    if (!updatedUser) {
+      res.status(404).json({ message: 'User not found after update' });
+      return;
+    }
+    
+    // Remove password from response
+    const { password, ...userWithoutPassword } = updatedUser as any;
 
-    res.json({
-      message: 'User updated successfully',
-      user: updatedUser,
-    });
+    res.json(userWithoutPassword);
   } catch (error: any) {
     res.status(500).json({ message: error.message });
   }

@@ -1,7 +1,8 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.cleanupNonSuperAdminUsers = exports.getTokenConfig = exports.saveTokenConfig = exports.getEventStatus = exports.togglePhase2 = void 0;
+exports.createUserByAdmin = exports.cleanupNonSuperAdminUsers = exports.getTokenConfig = exports.saveTokenConfig = exports.getEventStatus = exports.togglePhase2 = void 0;
 const storage_1 = require("../config/storage");
+const userService_1 = require("../services/userService");
 const togglePhase2 = async (req, res) => {
     try {
         const { eventId } = req.params;
@@ -135,3 +136,41 @@ const cleanupNonSuperAdminUsers = async (req, res) => {
     }
 };
 exports.cleanupNonSuperAdminUsers = cleanupNonSuperAdminUsers;
+// Create user by admin (bypasses invite token requirement)
+const createUserByAdmin = async (req, res) => {
+    try {
+        // Only admins can create users
+        if (req.user?.role !== 'admin' && !req.user?.isSuperUser) {
+            res.status(403).json({ message: 'Only admins can create users' });
+            return;
+        }
+        const { firstName, lastName, email, phone, password, role, house, gender, generation, address, profession } = req.body;
+        if (!firstName || !email || !phone || !password || !house) {
+            res.status(400).json({ message: 'Missing required fields' });
+            return;
+        }
+        const user = await (0, userService_1.createUser)({
+            firstName,
+            lastName: lastName || '',
+            email: email.toLowerCase(),
+            phone,
+            password,
+            role: role || 'user',
+            house,
+            gender: gender || 'male',
+            generation: generation || 1,
+            address: address || '',
+            profession: profession || '',
+            familyId: 'family-default',
+        });
+        const { password: _, ...safeUser } = user;
+        res.status(201).json({
+            message: 'User created successfully by admin',
+            user: safeUser,
+        });
+    }
+    catch (error) {
+        res.status(400).json({ message: error.message });
+    }
+};
+exports.createUserByAdmin = createUserByAdmin;

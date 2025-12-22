@@ -4,10 +4,16 @@ exports.updateUserProfile = exports.validateUserCredentials = exports.createUser
 const storage_1 = require("../config/storage");
 const auth_1 = require("../utils/auth");
 const createUser = async (userData) => {
-    const existingEmail = await storage_1.db.findOne('users', { email: userData.email });
+    // Check for existing email only if email is provided
+    if (userData.email) {
+        const existingEmail = await storage_1.db.findOne('users', { email: userData.email });
+        if (existingEmail) {
+            throw new Error('User with this email already exists');
+        }
+    }
     const existingPhone = await storage_1.db.findOne('users', { phone: userData.phone });
-    if (existingEmail || existingPhone) {
-        throw new Error('User with this email or phone already exists');
+    if (existingPhone) {
+        throw new Error('User with this phone number already exists');
     }
     const hashedPassword = await (0, auth_1.hashPassword)(userData.password);
     return storage_1.db.create('users', {
@@ -16,8 +22,12 @@ const createUser = async (userData) => {
     });
 };
 exports.createUser = createUser;
-const validateUserCredentials = async (email, password) => {
-    const user = await storage_1.db.findOne('users', { email });
+const validateUserCredentials = async (emailOrPhone, password) => {
+    // Try to find user by email first, then by phone
+    let user = await storage_1.db.findOne('users', { email: emailOrPhone.toLowerCase() });
+    if (!user) {
+        user = await storage_1.db.findOne('users', { phone: emailOrPhone });
+    }
     if (!user) {
         throw new Error('User not found');
     }

@@ -14,6 +14,7 @@ import pointsRoutes from './routes/points';
 import adminRoutes from './routes/admin';
 import familyRoutes from './routes/families';
 import tokenRoutes from './routes/tokens';
+import inviteRoutes from './routes/inviteRoutes';
 import { wsService } from './services/websocket';
 
 dotenv.config();
@@ -63,6 +64,7 @@ app.use('/api/points', pointsRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/families', familyRoutes);
 app.use('/api/tokens', tokenRoutes);
+app.use('/api/invites', inviteRoutes);
 
 // Events
 import eventRoutes from './routes/events';
