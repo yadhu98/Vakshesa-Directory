@@ -72,34 +72,43 @@ const ImageCropper: React.FC<ImageCropperProps> = ({ imageSrc, onCropComplete, o
       zIndex: 2000,
       display: 'flex',
       flexDirection: 'column',
+      alignItems: 'center',
+      justifyContent: 'center',
       overflow: 'hidden',
+      padding: '20px',
+      boxSizing: 'border-box',
     }}>
       <div style={{
-        flex: 1,
-        position: 'relative',
-        minHeight: 0,
-        overflow: 'hidden',
-      }}>
-        <Cropper
-          image={imageSrc}
-          crop={crop}
-          zoom={zoom}
-          aspect={1}
-          cropShape="round"
-          showGrid={false}
-          onCropChange={onCropChange}
-          onZoomChange={setZoom}
-          onCropComplete={onCropAreaComplete}
-        />
-      </div>
-      
-      <div style={{
-        flexShrink: 0,
-        padding: '16px 20px 20px',
+        width: '100%',
+        maxWidth: '500px',
         background: '#fff',
-        maxHeight: '40vh',
-        overflowY: 'auto',
+        borderRadius: '12px',
+        overflow: 'hidden',
+        display: 'flex',
+        flexDirection: 'column',
       }}>
+        <div style={{
+          height: '350px',
+          position: 'relative',
+          background: '#000',
+        }}>
+          <Cropper
+            image={imageSrc}
+            crop={crop}
+            zoom={zoom}
+            aspect={1}
+            cropShape="round"
+            showGrid={false}
+            onCropChange={onCropChange}
+            onZoomChange={setZoom}
+            onCropComplete={onCropAreaComplete}
+          />
+        </div>
+        
+        <div style={{
+          padding: '16px 20px 20px',
+          background: '#fff',
+        }}>
         <div style={{ marginBottom: 16 }}>
           <label style={{ display: 'block', fontSize: 14, marginBottom: 8, color: '#666' }}>
             Zoom
@@ -149,6 +158,7 @@ const ImageCropper: React.FC<ImageCropperProps> = ({ imageSrc, onCropComplete, o
             Save
           </button>
         </div>
+      </div>
       </div>
     </div>
   );
