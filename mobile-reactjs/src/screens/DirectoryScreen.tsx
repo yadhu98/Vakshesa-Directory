@@ -521,7 +521,20 @@ const DirectoryScreen: React.FC = () => {
                 <div style={{ fontSize: 13, fontWeight: 600, color: '#666', marginBottom: 8 }}>Family</div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                   {familyMembers.father && (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <div 
+                      onClick={() => handleMemberClick(familyMembers.father!)}
+                      style={{ 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        gap: 8,
+                        cursor: 'pointer',
+                        padding: 8,
+                        borderRadius: 8,
+                        transition: 'background 0.2s'
+                      }}
+                      onMouseOver={(e) => e.currentTarget.style.background = '#F5F5F5'}
+                      onMouseOut={(e) => e.currentTarget.style.background = 'transparent'}
+                    >
                       {familyMembers.father.profilePicture ? (
                         <img 
                           src={familyMembers.father.profilePicture} 
@@ -556,7 +569,20 @@ const DirectoryScreen: React.FC = () => {
                     </div>
                   )}
                   {familyMembers.mother && (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <div 
+                      onClick={() => handleMemberClick(familyMembers.mother!)}
+                      style={{ 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        gap: 8,
+                        cursor: 'pointer',
+                        padding: 8,
+                        borderRadius: 8,
+                        transition: 'background 0.2s'
+                      }}
+                      onMouseOver={(e) => e.currentTarget.style.background = '#F5F5F5'}
+                      onMouseOut={(e) => e.currentTarget.style.background = 'transparent'}
+                    >
                       {familyMembers.mother.profilePicture ? (
                         <img 
                           src={familyMembers.mother.profilePicture} 
@@ -591,7 +617,20 @@ const DirectoryScreen: React.FC = () => {
                     </div>
                   )}
                   {familyMembers.spouse && (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <div 
+                      onClick={() => handleMemberClick(familyMembers.spouse!)}
+                      style={{ 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        gap: 8,
+                        cursor: 'pointer',
+                        padding: 8,
+                        borderRadius: 8,
+                        transition: 'background 0.2s'
+                      }}
+                      onMouseOver={(e) => e.currentTarget.style.background = '#F5F5F5'}
+                      onMouseOut={(e) => e.currentTarget.style.background = 'transparent'}
+                    >
                       {familyMembers.spouse.profilePicture ? (
                         <img 
                           src={familyMembers.spouse.profilePicture} 
@@ -626,7 +665,21 @@ const DirectoryScreen: React.FC = () => {
                     </div>
                   )}
                   {familyMembers.children.map((child) => (
-                    <div key={child._id} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <div 
+                      key={child._id} 
+                      onClick={() => handleMemberClick(child)}
+                      style={{ 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        gap: 8,
+                        cursor: 'pointer',
+                        padding: 8,
+                        borderRadius: 8,
+                        transition: 'background 0.2s'
+                      }}
+                      onMouseOver={(e) => e.currentTarget.style.background = '#F5F5F5'}
+                      onMouseOut={(e) => e.currentTarget.style.background = 'transparent'}
+                    >
                       {child.profilePicture ? (
                         <img 
                           src={child.profilePicture} 
@@ -661,7 +714,21 @@ const DirectoryScreen: React.FC = () => {
                     </div>
                   ))}
                   {familyMembers.siblings.map((sibling) => (
-                    <div key={sibling._id} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <div 
+                      key={sibling._id} 
+                      onClick={() => handleMemberClick(sibling)}
+                      style={{ 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        gap: 8,
+                        cursor: 'pointer',
+                        padding: 8,
+                        borderRadius: 8,
+                        transition: 'background 0.2s'
+                      }}
+                      onMouseOver={(e) => e.currentTarget.style.background = '#F5F5F5'}
+                      onMouseOut={(e) => e.currentTarget.style.background = 'transparent'}
+                    >
                       {sibling.profilePicture ? (
                         <img 
                           src={sibling.profilePicture} 
