@@ -12,4 +12,5 @@ router.get('/admin-codes', auth_1.authMiddleware, auth_1.adminMiddleware, adminC
 router.post('/token-config', auth_1.authMiddleware, auth_1.adminMiddleware, adminController_1.saveTokenConfig);
 router.get('/token-config/:eventId', auth_1.authMiddleware, auth_1.adminMiddleware, adminController_1.getTokenConfig);
 router.post('/cleanup-users', auth_1.authMiddleware, auth_1.adminMiddleware, adminController_1.cleanupNonSuperAdminUsers);
+router.post('/create-user', auth_1.authMiddleware, auth_1.adminMiddleware, adminController_1.createUserByAdmin);
 exports.default = router;

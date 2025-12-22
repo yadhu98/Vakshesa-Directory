@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { togglePhase2, getEventStatus, saveTokenConfig, getTokenConfig, cleanupNonSuperAdminUsers } from '../controllers/adminController';
+import { togglePhase2, getEventStatus, saveTokenConfig, getTokenConfig, cleanupNonSuperAdminUsers, createUserByAdmin } from '../controllers/adminController';
 import { generateAdminCode, listActiveAdminCodes } from '../controllers/adminCodeController';
 import { authMiddleware, adminMiddleware } from '../middleware/auth';
 
@@ -12,5 +12,6 @@ router.get('/admin-codes', authMiddleware, adminMiddleware, listActiveAdminCodes
 router.post('/token-config', authMiddleware, adminMiddleware, saveTokenConfig);
 router.get('/token-config/:eventId', authMiddleware, adminMiddleware, getTokenConfig);
 router.post('/cleanup-users', authMiddleware, adminMiddleware, cleanupNonSuperAdminUsers);
+router.post('/create-user', authMiddleware, adminMiddleware, createUserByAdmin);
 
 export default router;

@@ -1,6 +1,10 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { authService } from '../services/api';
+import axios from 'axios';
+
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5001/api';
 
 const initialForm = {
   firstName: '',
@@ -9,6 +13,7 @@ const initialForm = {
   password: '',
   confirmPassword: '',
   phone: '',
+  countryCode: '+91',
   gender: 'male',
   house: 'Kadannamanna',
   generation: '1',
@@ -162,7 +167,40 @@ const RegisterScreen: React.FC<{ onRegisterSuccess: () => void }> = ({ onRegiste
   const [form, setForm] = useState(initialForm);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [inviteToken, setInviteToken] = useState('');
+  const [inviteValid, setInviteValid] = useState<boolean | null>(null);
+  const [inviterName, setInviterName] = useState('');
+  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+
+  // Validate invite token on mount
+  useEffect(() => {
+    const token = searchParams.get('invite');
+    if (!token) {
+      setError('Invalid or missing invite link. Registration requires an invitation from an existing member.');
+      setInviteValid(false);
+      return;
+    }
+
+    setInviteToken(token);
+    
+    // Validate the invite token
+    axios.get(`${API_URL}/invites/validate/${token}`)
+      .then(response => {
+        if (response.data.valid) {
+          setInviteValid(true);
+          setInviterName(response.data.createdByName);
+          setError('');
+        } else {
+          setInviteValid(false);
+          setError(response.data.message || 'Invalid invite token');
+        }
+      })
+      .catch(err => {
+        setInviteValid(false);
+        setError(err?.response?.data?.message || 'Failed to validate invite token');
+      });
+  }, [searchParams]);
 
   const handleChange = (key: string, value: string) => {
     setForm({ ...form, [key]: value });
@@ -173,8 +211,8 @@ const RegisterScreen: React.FC<{ onRegisterSuccess: () => void }> = ({ onRegiste
       setError('First and last name are required');
       return false;
     }
-    if (!form.email || !/\S+@\S+\.\S+/.test(form.email)) {
-      setError('Valid email is required');
+    if (form.email && !/\S+@\S+\.\S+/.test(form.email)) {
+      setError('Please provide a valid email address');
       return false;
     }
     if (!form.password || form.password.length < 8) {
@@ -195,21 +233,30 @@ const RegisterScreen: React.FC<{ onRegisterSuccess: () => void }> = ({ onRegiste
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    
+    if (!inviteValid) {
+      setError('Invalid invite token. Please use a valid invitation link.');
+      return;
+    }
+    
     if (!validateForm()) return;
+    
     setLoading(true);
     try {
       const registrationData = {
         firstName: form.firstName,
         lastName: form.lastName,
-        email: form.email,
+        ...(form.email && { email: form.email }),
         password: form.password,
         phone: form.phone,
+        countryCode: form.countryCode,
         gender: form.gender,
         house: form.house,
         generation: parseInt(form.generation) || 1,
         address: form.address,
-        profession: form.profession,
+        occupation: form.profession,
         role: 'user',
+        inviteToken: inviteToken, // Include the invite token
       };
       await authService.register(registrationData);
       onRegisterSuccess();
@@ -224,15 +271,103 @@ const RegisterScreen: React.FC<{ onRegisterSuccess: () => void }> = ({ onRegiste
     <div style={styles.container}>
       <form style={styles.content} onSubmit={handleRegister}>
         <div style={styles.title}>Create Account</div>
-        <div style={styles.subtitle}>Join the Vksha Family</div>
+        <div style={styles.subtitle}>
+          {inviteValid ? `Invited by ${inviterName}` : 'Join the Vakshesa Family'}
+        </div>
         {error && (
           <div style={styles.errorContainer}><span style={styles.errorText}>{error}</span></div>
         )}
-        <div style={styles.sectionTitle}>Personal Information</div>
+        
+        {inviteValid === false && (
+          <div style={{ marginTop: 16, textAlign: 'center' }}>
+            <button
+              type="button"
+              style={{
+                ...styles.button,
+                background: '#666',
+                marginTop: 0,
+              }}
+              onClick={() => navigate('/')}
+            >
+              Return to Login
+            </button>
+          </div>
+        )}
+        
+        {inviteValid && (
+          <>
+            <div style={styles.sectionTitle}>Personal Information</div>
         <input style={styles.input} placeholder="First Name *" value={form.firstName} onChange={e => handleChange('firstName', e.target.value)} disabled={loading} />
         <input style={styles.input} placeholder="Last Name *" value={form.lastName} onChange={e => handleChange('lastName', e.target.value)} disabled={loading} />
-        <input style={styles.input} placeholder="Email *" value={form.email} onChange={e => handleChange('email', e.target.value)} disabled={loading} type="email" />
-        <input style={styles.input} placeholder="Phone (with country code) *" value={form.phone} onChange={e => handleChange('phone', e.target.value)} disabled={loading} type="tel" />
+        <input style={styles.input} placeholder="Email (optional)" value={form.email} onChange={e => handleChange('email', e.target.value)} disabled={loading} type="email" />
+        
+        <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+          <select 
+            style={{ ...styles.input, marginBottom: 0, width: '35%' }} 
+            value={form.countryCode} 
+            onChange={e => handleChange('countryCode', e.target.value)} 
+            disabled={loading}
+          >
+            <option value="+91">🇮🇳 +91 India</option>
+            <option value="+971">🇦🇪 +971 UAE</option>
+            <option value="+966">🇸🇦 +966 Saudi Arabia</option>
+            <option value="+965">🇰🇼 +965 Kuwait</option>
+            <option value="+974">🇶🇦 +974 Qatar</option>
+            <option value="+968">🇴🇲 +968 Oman</option>
+            <option value="+973">🇧🇭 +973 Bahrain</option>
+            <option value="+1">🇺🇸 +1 USA/Canada</option>
+            <option value="+44">🇬🇧 +44 UK</option>
+            <option value="+61">🇦🇺 +61 Australia</option>
+            <option value="+64">🇳🇿 +64 New Zealand</option>
+            <option value="+65">🇸🇬 +65 Singapore</option>
+            <option value="+60">🇲🇾 +60 Malaysia</option>
+            <option value="+66">🇹🇭 +66 Thailand</option>
+            <option value="+63">🇵🇭 +63 Philippines</option>
+            <option value="+62">🇮🇩 +62 Indonesia</option>
+            <option value="+84">🇻🇳 +84 Vietnam</option>
+            <option value="+86">🇨🇳 +86 China</option>
+            <option value="+81">🇯🇵 +81 Japan</option>
+            <option value="+82">🇰🇷 +82 South Korea</option>
+            <option value="+92">🇵🇰 +92 Pakistan</option>
+            <option value="+880">🇧🇩 +880 Bangladesh</option>
+            <option value="+94">🇱🇰 +94 Sri Lanka</option>
+            <option value="+977">🇳🇵 +977 Nepal</option>
+            <option value="+20">🇪🇬 +20 Egypt</option>
+            <option value="+27">🇿🇦 +27 South Africa</option>
+            <option value="+49">🇩🇪 +49 Germany</option>
+            <option value="+33">🇫🇷 +33 France</option>
+            <option value="+39">🇮🇹 +39 Italy</option>
+            <option value="+34">🇪🇸 +34 Spain</option>
+            <option value="+31">🇳🇱 +31 Netherlands</option>
+            <option value="+32">🇧🇪 +32 Belgium</option>
+            <option value="+41">🇨🇭 +41 Switzerland</option>
+            <option value="+43">🇦🇹 +43 Austria</option>
+            <option value="+46">🇸🇪 +46 Sweden</option>
+            <option value="+47">🇳🇴 +47 Norway</option>
+            <option value="+45">🇩🇰 +45 Denmark</option>
+            <option value="+358">🇫🇮 +358 Finland</option>
+            <option value="+353">🇮🇪 +353 Ireland</option>
+            <option value="+351">🇵🇹 +351 Portugal</option>
+            <option value="+30">🇬🇷 +30 Greece</option>
+            <option value="+48">🇵🇱 +48 Poland</option>
+            <option value="+7">🇷🇺 +7 Russia</option>
+            <option value="+90">🇹🇷 +90 Turkey</option>
+            <option value="+972">🇮🇱 +972 Israel</option>
+            <option value="+961">🇱🇧 +961 Lebanon</option>
+            <option value="+962">🇯🇴 +962 Jordan</option>
+            <option value="+55">🇧🇷 +55 Brazil</option>
+            <option value="+52">🇲🇽 +52 Mexico</option>
+            <option value="+54">🇦🇷 +54 Argentina</option>
+          </select>
+          <input 
+            style={{ ...styles.input, marginBottom: 0, flex: 1 }} 
+            placeholder="Phone Number *" 
+            value={form.phone} 
+            onChange={e => handleChange('phone', e.target.value)} 
+            disabled={loading} 
+            type="tel" 
+          />
+        </div>
         <div style={styles.label}>Gender *</div>
         <div style={styles.radioGroup}>
           <div style={{ ...styles.radioButton, ...(form.gender === 'male' ? styles.radioButtonSelected : {}) }} onClick={() => !loading && handleChange('gender', 'male')}>
@@ -271,6 +406,8 @@ const RegisterScreen: React.FC<{ onRegisterSuccess: () => void }> = ({ onRegiste
           {loading ? 'Creating Account...' : 'Create Account'}
         </button>
         <div style={styles.linkButton} onClick={() => navigate('/')}>Already have an account? Sign In</div>
+          </>
+        )}
       </form>
     </div>
   );

@@ -5,7 +5,7 @@ import { Book, User } from 'feather-icons-react';
 
 const navItems = [
   { label: 'Directory', path: '/directory', icon: <Book size={22} /> },
-  { label: 'Edit Profile', path: '/edit-profile', icon: <User size={22} /> },
+  { label: 'My Profile', path: '/edit-profile', icon: <User size={22} /> },
 ];
 
 const FooterNav: React.FC = () => {

@@ -121,7 +121,7 @@ exports.toggleUserStatus = toggleUserStatus;
 const updateUser = async (req, res) => {
     try {
         const { userId } = req.params;
-        const { firstName, lastName, email, phone, role, isActive } = req.body;
+        const { firstName, lastName, email, phone, role, isActive, gender, house, occupation, address, linkedin, instagram, facebook, countryCode, profilePicture } = req.body;
         const { db } = await Promise.resolve().then(() => __importStar(require('../config/storage')));
         const user = await db.findById('users', userId);
         if (!user) {
@@ -145,16 +145,40 @@ const updateUser = async (req, res) => {
             updates.email = email;
         if (phone !== undefined)
             updates.phone = phone;
-        if (role !== undefined)
-            updates.role = role;
-        if (isActive !== undefined)
-            updates.isActive = isActive;
+        if (countryCode !== undefined)
+            updates.countryCode = countryCode;
+        if (gender !== undefined)
+            updates.gender = gender;
+        if (house !== undefined)
+            updates.house = house;
+        if (occupation !== undefined)
+            updates.occupation = occupation;
+        if (address !== undefined)
+            updates.address = address;
+        if (linkedin !== undefined)
+            updates.linkedin = linkedin;
+        if (instagram !== undefined)
+            updates.instagram = instagram;
+        if (facebook !== undefined)
+            updates.facebook = facebook;
+        if (profilePicture !== undefined)
+            updates.profilePicture = profilePicture;
+        // Only admins can update role and isActive
+        if (req.user?.role === 'admin' || req.user?.isSuperUser) {
+            if (role !== undefined)
+                updates.role = role;
+            if (isActive !== undefined)
+                updates.isActive = isActive;
+        }
         await db.updateOne('users', { _id: userId }, updates);
         const updatedUser = await db.findById('users', userId);
-        res.json({
-            message: 'User updated successfully',
-            user: updatedUser,
-        });
+        if (!updatedUser) {
+            res.status(404).json({ message: 'User not found after update' });
+            return;
+        }
+        // Remove password from response
+        const { password, ...userWithoutPassword } = updatedUser;
+        res.json(userWithoutPassword);
     }
     catch (error) {
         res.status(500).json({ message: error.message });

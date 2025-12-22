@@ -65,7 +65,7 @@ export const userService = {
   searchUsers: (query: string, limit: number = 20) =>
     axiosInstance.get('/users/search', { params: { q: query, limit } }),
   updateUserProfile: (userId: string, data: any) =>
-    axiosInstance.put(`/users/${userId}`, data),
+    axiosInstance.put(`/users/${userId}/profile`, data),
 };
 
 export const pointsService = {

@@ -10,6 +10,7 @@ router.get('/leaderboard', auth_1.authMiddleware, userController_1.getLeaderboar
 router.get('/family/:familyId/tree', auth_1.authMiddleware, userController_1.getFamilyTreeStructure);
 // Parameterized routes last
 router.get('/:userId', auth_1.authMiddleware, userController_1.getUserProfile);
+router.put('/:userId/profile', auth_1.authMiddleware, userController_1.updateUser);
 router.patch('/:userId/status', auth_1.authMiddleware, auth_1.adminMiddleware, userController_1.toggleUserStatus);
 router.put('/:userId', auth_1.authMiddleware, auth_1.adminMiddleware, userController_1.updateUser);
 router.delete('/:userId', auth_1.authMiddleware, auth_1.adminMiddleware, userController_1.deleteUser);

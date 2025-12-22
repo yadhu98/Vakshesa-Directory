@@ -1,6 +1,7 @@
 import { Response } from 'express';
 import { AuthRequest } from '../middleware/auth';
 import { db } from '../config/storage';
+import { createUser } from '../services/userService';
 
 export const togglePhase2 = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
@@ -146,5 +147,47 @@ export const cleanupNonSuperAdminUsers = async (req: AuthRequest, res: Response)
     });
   } catch (error: any) {
     res.status(500).json({ message: 'Error during cleanup', error: error.message });
+  }
+};
+
+// Create user by admin (bypasses invite token requirement)
+export const createUserByAdmin = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    // Only admins can create users
+    if (req.user?.role !== 'admin' && !req.user?.isSuperUser) {
+      res.status(403).json({ message: 'Only admins can create users' });
+      return;
+    }
+
+    const { firstName, lastName, email, phone, password, role, house, gender, generation, address, profession } = req.body;
+
+    if (!firstName || !email || !phone || !password || !house) {
+      res.status(400).json({ message: 'Missing required fields' });
+      return;
+    }
+
+    const user = await createUser({
+      firstName,
+      lastName: lastName || '',
+      email: email.toLowerCase(),
+      phone,
+      password,
+      role: role || 'user',
+      house,
+      gender: gender || 'male',
+      generation: generation || 1,
+      address: address || '',
+      profession: profession || '',
+      familyId: 'family-default',
+    });
+
+    const { password: _, ...safeUser } = user;
+
+    res.status(201).json({
+      message: 'User created successfully by admin',
+      user: safeUser,
+    });
+  } catch (error: any) {
+    res.status(400).json({ message: error.message });
   }
 };

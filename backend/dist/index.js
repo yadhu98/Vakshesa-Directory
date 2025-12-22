@@ -51,6 +51,7 @@ const points_1 = __importDefault(require("./routes/points"));
 const admin_1 = __importDefault(require("./routes/admin"));
 const families_1 = __importDefault(require("./routes/families"));
 const tokens_1 = __importDefault(require("./routes/tokens"));
+const inviteRoutes_1 = __importDefault(require("./routes/inviteRoutes"));
 const websocket_1 = require("./services/websocket");
 dotenv_1.default.config();
 const app = (0, express_1.default)();
@@ -92,6 +93,7 @@ app.use('/api/points', points_1.default);
 app.use('/api/admin', admin_1.default);
 app.use('/api/families', families_1.default);
 app.use('/api/tokens', tokens_1.default);
+app.use('/api/invites', inviteRoutes_1.default);
 // Events
 const events_1 = __importDefault(require("./routes/events"));
 app.use('/api/events', events_1.default);

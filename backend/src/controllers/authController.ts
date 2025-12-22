@@ -9,7 +9,7 @@ export const login = async (req: Request, res: Response): Promise<void> => {
     const { email, password } = req.body;
 
     if (!email || !password) {
-      res.status(400).json({ message: 'Email and password are required' });
+      res.status(400).json({ message: 'Email or phone number and password are required' });
       return;
     }
 
@@ -36,7 +36,7 @@ export const login = async (req: Request, res: Response): Promise<void> => {
 
 export const register = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { firstName, lastName, name, email, phone, password, role, familyId, house, validationCode, isSuperUser } = req.body;
+    const { firstName, lastName, name, email, phone, password, role, familyId, house, validationCode, isSuperUser, inviteToken, isAdminCreated, address, occupation, gender, countryCode } = req.body;
 
     // Support both name (mobile) and firstName/lastName (admin)
     let userFirstName = firstName;
@@ -48,8 +48,8 @@ export const register = async (req: Request, res: Response): Promise<void> => {
       userLastName = nameParts.slice(1).join(' ') || 'Family';
     }
 
-    if (!userFirstName || !email || !phone || !password || !house) {
-      res.status(400).json({ message: 'Missing required fields' });
+    if (!userFirstName || !phone || !password || !house) {
+      res.status(400).json({ message: 'Missing required fields: firstName, phone, password, and house are required' });
       return;
     }
 
@@ -63,8 +63,30 @@ export const register = async (req: Request, res: Response): Promise<void> => {
     const normalizedEmail = email.toLowerCase();
     let finalRole = role || 'user';
 
-    // Super user bypass - no email restriction
+    // Super user bypass - no email restriction or invite token required
     const allowSuperUser = isSuperUser === true;
+
+    // Validate invite token (required for self-registration, but not for admin-created users or super users)
+    if (!allowSuperUser && !isAdminCreated) {
+      if (!inviteToken) {
+        res.status(400).json({ message: 'Invite token is required for registration' });
+        return;
+      }
+
+      const tokenRecord = await db.findOne('inviteTokens', { token: inviteToken });
+      if (!tokenRecord) {
+        res.status(400).json({ message: 'Invalid invite token' });
+        return;
+      }
+      if (tokenRecord.used) {
+        res.status(400).json({ message: 'Invite token already used' });
+        return;
+      }
+      if (new Date(tokenRecord.expiresAt).getTime() < Date.now()) {
+        res.status(400).json({ message: 'Invite token expired' });
+        return;
+      }
+    }
 
     if (finalRole === 'admin' && !allowSuperUser) {
       if (!validationCode) {
@@ -94,12 +116,25 @@ export const register = async (req: Request, res: Response): Promise<void> => {
       lastName: userLastName || '',
       email: normalizedEmail,
       phone,
+      countryCode: countryCode || '+91',
       password,
       role: finalRole,
       house,
       isSuperUser: !!allowSuperUser,
       familyId: familyId || 'family-default',
+      address: address || '',
+      occupation: occupation || '',
+      gender: gender || 'male',
     });
+
+    // Mark invite token as used (if not super user)
+    if (!allowSuperUser && inviteToken) {
+      await db.updateOne('inviteTokens', { token: inviteToken }, {
+        used: true,
+        usedBy: user._id,
+        usedAt: new Date(),
+      });
+    }
 
     const token = generateToken(user._id?.toString() || '', user.role, user.isSuperUser);
     const { password: _, ...safeUser } = user;
