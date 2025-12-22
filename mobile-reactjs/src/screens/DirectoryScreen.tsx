@@ -6,7 +6,7 @@ import AppHeader from '../components/AppHeader';
 import { userService } from '../services/api';
 import axios from 'axios';
 
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5001/api';
+const API_URL = process.env.REACT_APP_API_URL || 'https://vakshesa-directory.onrender.com/api';
 
 type House = 'All' | 'Kadannamanna' | 'Ayiranazhi' | 'Aripra' | 'Mankada';
 
