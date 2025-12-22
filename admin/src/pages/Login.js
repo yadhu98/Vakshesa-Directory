@@ -1,6 +1,6 @@
 import { jsx as _jsx, jsxs as _jsxs, Fragment as _Fragment } from "react/jsx-runtime";
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { Chrome, Apple } from 'lucide-react';
 import api from '../services/api';
 import { ButtonLoader } from '@components/Loader';
@@ -68,7 +68,7 @@ const LoginNew = () => {
                             }, disabled: loading, children: loading ? (_jsxs(_Fragment, { children: [_jsx(ButtonLoader, {}), _jsx("span", { children: "Loading..." })] })) : ('Continue') }), _jsxs("div", { style: styles.dividerContainer, children: [_jsx("div", { style: styles.divider }), _jsx("span", { style: styles.dividerText, children: "or" }), _jsx("div", { style: styles.divider })] }), _jsxs("button", { type: "button", onClick: handleGoogleLogin, style: styles.socialButton, disabled: loading, children: [_jsx(Chrome, { size: 18, style: { marginRight: '8px' } }), "Continue with Google"] }), _jsxs("button", { type: "button", onClick: handleAppleLogin, style: {
                                 ...styles.socialButton,
                                 ...styles.appleButton,
-                            }, disabled: loading, children: [_jsx(Apple, { size: 18, style: { marginRight: '8px' } }), "Continue with Apple"] }), _jsx("div", { style: styles.switchContainer, children: _jsxs("p", { style: styles.switchText, children: ["Don't have an account?", ' ', _jsx("a", { href: "/register", style: styles.switchLink, children: "Sign up" })] }) })] }), _jsxs("p", { style: styles.termsText, children: ["By clicking continue, you agree to our", ' ', _jsx("a", { href: "#", style: styles.termsLink, children: "Terms of Service" }), ' ', "and", ' ', _jsx("a", { href: "#", style: styles.termsLink, children: "Privacy Policy" })] })] }) }));
+                            }, disabled: loading, children: [_jsx(Apple, { size: 18, style: { marginRight: '8px' } }), "Continue with Apple"] }), _jsx("div", { style: styles.switchContainer, children: _jsxs("p", { style: styles.switchText, children: ["Don't have an account?", ' ', _jsx(Link, { to: "/register", style: styles.switchLink, children: "Sign up" })] }) })] }), _jsxs("p", { style: styles.termsText, children: ["By clicking continue, you agree to our", ' ', _jsx("a", { href: "#", style: styles.termsLink, children: "Terms of Service" }), ' ', "and", ' ', _jsx("a", { href: "#", style: styles.termsLink, children: "Privacy Policy" })] })] }) }));
 };
 const styles = {
     container: {

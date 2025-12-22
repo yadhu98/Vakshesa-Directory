@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Layout } from '@components/Layout';
 import axiosInstance from '@services/api';
 
@@ -21,6 +22,7 @@ interface Event {
 }
 
 const EventSettings: React.FC = () => {
+  const navigate = useNavigate();
   const [generating, setGenerating] = useState(false);
   const [code, setCode] = useState<{ code: string; expiresAt: string } | null>(null);
   const [events, setEvents] = useState<Event[]>([]);
@@ -345,7 +347,7 @@ const EventSettings: React.FC = () => {
                 <p className="mb-3">No events found. Create an event first.</p>
                 <button 
                   className="btn-primary"
-                  onClick={() => window.location.href = '/events'}
+                  onClick={() => navigate('/events')}
                 >
                   Create Event
                 </button>
@@ -400,7 +402,7 @@ const EventSettings: React.FC = () => {
             )}
             <button 
               className="w-full mt-4 px-4 py-2 border rounded hover:bg-gray-50 font-medium"
-              onClick={() => window.location.href = '/events'}
+              onClick={() => navigate('/events')}
             >
               📋 Manage All Events
             </button>
@@ -412,7 +414,7 @@ const EventSettings: React.FC = () => {
               System-wide controls and danger zone actions.
             </p>
             <div className="space-y-3">
-              <button className="w-full px-4 py-2 border rounded hover:bg-gray-50" onClick={() => window.location.href = '/events'}>
+              <button className="w-full px-4 py-2 border rounded hover:bg-gray-50" onClick={() => navigate('/events')}>
                 📅 View All Events
               </button>
               <button className="w-full px-4 py-2 border rounded hover:bg-gray-50 text-red-600 border-red-300 hover:bg-red-50">
@@ -438,10 +440,10 @@ const EventSettings: React.FC = () => {
                 Based on {stats.totalTokensIssued} tokens issued
               </div>
             </div>
-            <button className="w-full px-4 py-3 bg-blue-600 text-white rounded hover:bg-blue-700 font-medium" onClick={() => window.location.href = '/token-recharge'}>
+            <button className="w-full px-4 py-3 bg-blue-600 text-white rounded hover:bg-blue-700 font-medium" onClick={() => navigate('/token-recharge')}>
               💳 Dispense Tokens (Recharge)
             </button>
-            <button className="w-full px-4 py-3 border border-gray-300 rounded hover:bg-gray-50 font-medium" onClick={() => window.location.href = '/stall-audit'}>
+            <button className="w-full px-4 py-3 border border-gray-300 rounded hover:bg-gray-50 font-medium" onClick={() => navigate('/stall-audit')}>
               📊 View Token Transactions
             </button>
           </div>

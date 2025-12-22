@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Layout } from '@components/Layout';
 import axiosInstance from '@services/api';
 import { Trash2, Upload, X, FileText } from 'lucide-react';
@@ -42,6 +43,7 @@ interface ImportUser {
 }
 
 const Users: React.FC = () => {
+  const navigate = useNavigate();
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [deleteLoading, setDeleteLoading] = useState(false);
@@ -285,7 +287,7 @@ const Users: React.FC = () => {
               <Trash2 size={16} />
               Delete All Users
             </button>
-            <button className="btn-primary" onClick={() => window.location.href = '/register-user'}>
+            <button className="btn-primary" onClick={() => navigate('/register-user')}>
               + Add User
             </button>
           </div>

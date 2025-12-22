@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { Chrome, Apple } from 'lucide-react';
 import api from '../services/api';
 import { ButtonLoader } from '@components/Loader';
@@ -165,9 +165,9 @@ const LoginNew: React.FC = () => {
           <div style={styles.switchContainer}>
             <p style={styles.switchText}>
               Don't have an account?{' '}
-              <a href="/register" style={styles.switchLink}>
+              <Link to="/register" style={styles.switchLink}>
                 Sign up
-              </a>
+              </Link>
             </p>
           </div>
         </form>
