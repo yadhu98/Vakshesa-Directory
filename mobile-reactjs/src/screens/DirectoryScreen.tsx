@@ -105,6 +105,18 @@ const DirectoryScreen: React.FC = () => {
     }
   }, [searchQuery, selectedHouse, members]);
 
+  // Lock body scroll when modal is open
+  useEffect(() => {
+    if (modalVisible) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, [modalVisible]);
+
   const getInitials = (firstName: string, lastName: string) => {
     return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
   };
@@ -422,8 +434,8 @@ const DirectoryScreen: React.FC = () => {
 
       {/* Member Details Modal */}
       {modalVisible && selectedMember && (
-        <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-          <div style={{ background: colors.white, borderRadius: 16, minWidth: 300, maxWidth: 340, boxShadow: '0 2px 16px rgba(0,0,0,0.12)', padding: 24, position: 'relative' }}>
+        <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, overflow: 'auto', padding: '20px 0' }}>
+          <div style={{ background: colors.white, borderRadius: 16, minWidth: 300, maxWidth: 340, maxHeight: 'calc(100vh - 40px)', overflowY: 'auto', boxShadow: '0 2px 16px rgba(0,0,0,0.12)', padding: 24, position: 'relative', margin: 'auto' }}>
             {/* Close X button in top right */}
             <button 
               onClick={() => setModalVisible(false)} 
