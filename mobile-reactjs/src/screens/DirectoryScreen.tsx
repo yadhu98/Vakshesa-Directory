@@ -549,6 +549,9 @@ const DirectoryScreen: React.FC = () => {
                         <div style={{ fontSize: 14, fontWeight: 500, color: '#333' }}>
                           {familyMembers.father.firstName} {familyMembers.father.lastName}
                         </div>
+                        {familyMembers.father.house && (
+                          <div style={{ fontSize: 11, color: '#999' }}>🏠 {familyMembers.father.house}</div>
+                        )}
                       </div>
                     </div>
                   )}
@@ -581,6 +584,9 @@ const DirectoryScreen: React.FC = () => {
                         <div style={{ fontSize: 14, fontWeight: 500, color: '#333' }}>
                           {familyMembers.mother.firstName} {familyMembers.mother.lastName}
                         </div>
+                        {familyMembers.mother.house && (
+                          <div style={{ fontSize: 11, color: '#999' }}>🏠 {familyMembers.mother.house}</div>
+                        )}
                       </div>
                     </div>
                   )}
@@ -613,6 +619,9 @@ const DirectoryScreen: React.FC = () => {
                         <div style={{ fontSize: 14, fontWeight: 500, color: '#333' }}>
                           {familyMembers.spouse.firstName} {familyMembers.spouse.lastName}
                         </div>
+                        {familyMembers.spouse.house && (
+                          <div style={{ fontSize: 11, color: '#999' }}>🏠 {familyMembers.spouse.house}</div>
+                        )}
                       </div>
                     </div>
                   )}
@@ -645,6 +654,9 @@ const DirectoryScreen: React.FC = () => {
                         <div style={{ fontSize: 14, fontWeight: 500, color: '#333' }}>
                           {child.firstName} {child.lastName}
                         </div>
+                        {child.house && (
+                          <div style={{ fontSize: 11, color: '#999' }}>🏠 {child.house}</div>
+                        )}
                       </div>
                     </div>
                   ))}
@@ -677,6 +689,9 @@ const DirectoryScreen: React.FC = () => {
                         <div style={{ fontSize: 14, fontWeight: 500, color: '#333' }}>
                           {sibling.firstName} {sibling.lastName}
                         </div>
+                        {sibling.house && (
+                          <div style={{ fontSize: 11, color: '#999' }}>🏠 {sibling.house}</div>
+                        )}
                       </div>
                     </div>
                   ))}
