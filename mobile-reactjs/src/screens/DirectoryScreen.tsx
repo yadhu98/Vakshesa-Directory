@@ -56,6 +56,11 @@ const DirectoryScreen: React.FC = () => {
   const [inviteLink, setInviteLink] = useState('');
   const [inviteCopied, setInviteCopied] = useState(false);
   
+  // Modal stepper state
+  const [modalStep, setModalStep] = useState<number>(0);
+  const [touchStart, setTouchStart] = useState<number>(0);
+  const [touchEnd, setTouchEnd] = useState<number>(0);
+  
   // Family member details
   const [familyMembers, setFamilyMembers] = useState<{
     father?: Member;
@@ -117,12 +122,46 @@ const DirectoryScreen: React.FC = () => {
     };
   }, [modalVisible]);
 
+  // Reset modal step when modal opens/closes
+  useEffect(() => {
+    if (!modalVisible) {
+      setModalStep(0);
+    }
+  }, [modalVisible]);
+
   const getInitials = (firstName: string, lastName: string) => {
     return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
   };
 
+  // Swipe handlers
+  const handleTouchStart = (e: React.TouchEvent) => {
+    setTouchStart(e.targetTouches[0].clientX);
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    setTouchEnd(e.targetTouches[0].clientX);
+  };
+
+  const handleTouchEnd = () => {
+    if (!touchStart || !touchEnd) return;
+    
+    const distance = touchStart - touchEnd;
+    const isLeftSwipe = distance > 50;
+    const isRightSwipe = distance < -50;
+    
+    if (isLeftSwipe && modalStep === 0) {
+      setModalStep(1);
+    } else if (isRightSwipe && modalStep === 1) {
+      setModalStep(0);
+    }
+    
+    setTouchStart(0);
+    setTouchEnd(0);
+  };
+
   const handleMemberClick = async (member: Member) => {
     setSelectedMember(member);
+    setModalStep(0);
     setModalVisible(true);
     
     // Load family member details
@@ -435,7 +474,12 @@ const DirectoryScreen: React.FC = () => {
       {/* Member Details Modal */}
       {modalVisible && selectedMember && (
         <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, overflow: 'auto', padding: '20px 0' }}>
-          <div style={{ background: colors.white, borderRadius: 16, minWidth: 300, maxWidth: 340, maxHeight: 'calc(100vh - 40px)', overflowY: 'auto', boxShadow: '0 2px 16px rgba(0,0,0,0.12)', padding: 24, position: 'relative', margin: 'auto' }}>
+          <div 
+            onTouchStart={handleTouchStart}
+            onTouchMove={handleTouchMove}
+            onTouchEnd={handleTouchEnd}
+            style={{ background: colors.white, borderRadius: 16, minWidth: 300, maxWidth: 340, maxHeight: 'calc(100vh - 40px)', overflowY: 'auto', boxShadow: '0 2px 16px rgba(0,0,0,0.12)', padding: 24, position: 'relative', margin: 'auto' }}
+          >
             {/* Close X button in top right */}
             <button 
               onClick={() => setModalVisible(false)} 
@@ -452,362 +496,511 @@ const DirectoryScreen: React.FC = () => {
                 display: 'flex', 
                 alignItems: 'center', 
                 justifyContent: 'center',
-                transition: 'background 0.2s'
+                transition: 'background 0.2s',
+                zIndex: 10
               }}
               onMouseOver={(e) => e.currentTarget.style.background = colors.gray.border}
               onMouseOut={(e) => e.currentTarget.style.background = colors.gray.light}
             >
               <X size={18} color={colors.gray.dark} />
             </button>
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: 16 }}>
-              {selectedMember.profilePicture ? (
-                <img
-                  src={selectedMember.profilePicture}
-                  alt={`${selectedMember.firstName} ${selectedMember.lastName}`}
-                  style={{
-                    width: 80,
-                    height: 80,
-                    borderRadius: '50%',
-                    objectFit: 'cover',
-                    border: '3px solid #000',
-                    marginBottom: 12,
-                  }}
-                />
-              ) : (
-                <div style={{
-                  width: 80,
-                  height: 80,
-                  borderRadius: '50%',
-                  background: colors.primary,
-                  color: colors.white,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: 32,
-                  fontWeight: 700,
-                  marginBottom: 12,
-                  border: '3px solid #000',
-                }}>
-                  {getInitials(selectedMember.firstName, selectedMember.lastName)}
-                </div>
-              )}
-              <div style={{ fontWeight: 700, fontSize: 20, color: colors.primary, marginBottom: 4 }}>{selectedMember.firstName} {selectedMember.lastName}</div>
-              <div style={{ fontSize: 14, color: '#666', marginBottom: 8 }}>{selectedMember.email}</div>
-              <div style={{ fontSize: 13, color: '#999', marginBottom: 8 }}>{selectedMember.role ? selectedMember.role.charAt(0).toUpperCase() + selectedMember.role.slice(1) : 'Member'}</div>
+
+            {/* Step Indicators */}
+            <div style={{ display: 'flex', gap: 6, justifyContent: 'center', marginBottom: 16 }}>
+              <div style={{ width: 24, height: 3, borderRadius: 2, background: modalStep === 0 ? '#000' : '#DDD', transition: 'background 0.3s' }}></div>
+              <div style={{ width: 24, height: 3, borderRadius: 2, background: modalStep === 1 ? '#000' : '#DDD', transition: 'background 0.3s' }}></div>
             </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 16 }}>
-              {selectedMember.phone && <div style={{ fontSize: 14, color: '#333' }}>📞 {selectedMember.phone}</div>}
-              {selectedMember.house && <div style={{ fontSize: 14, color: '#333' }}>🏠 {selectedMember.house}</div>}
-              {selectedMember.gender && <div style={{ fontSize: 14, color: '#333' }}>👤 {selectedMember.gender.charAt(0).toUpperCase() + selectedMember.gender.slice(1)}</div>}
-              {selectedMember.occupation && <div style={{ fontSize: 14, color: '#333' }}>💼 {selectedMember.occupation}</div>}
-              {selectedMember.address && <div style={{ fontSize: 14, color: '#333', lineHeight: '1.5' }}>📍 {selectedMember.address}</div>}
-            </div>
-            {(selectedMember.linkedin || selectedMember.instagram || selectedMember.facebook) && (
-              <div style={{ marginBottom: 16, paddingTop: 12, borderTop: '1px solid #E0E0E0' }}>
-                <div style={{ fontSize: 13, fontWeight: 600, color: '#666', marginBottom: 8 }}>Social Media</div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                  {selectedMember.linkedin && (
-                    <a href={selectedMember.linkedin} target="_blank" rel="noopener noreferrer" style={{ fontSize: 14, color: '#0077B5', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
-                      LinkedIn
-                    </a>
+
+            {/* Step 1: Profile Details */}
+            {modalStep === 0 && (
+              <div>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: 16 }}>
+                  {selectedMember.profilePicture ? (
+                    <img
+                      src={selectedMember.profilePicture}
+                      alt={`${selectedMember.firstName} ${selectedMember.lastName}`}
+                      style={{
+                        width: 80,
+                        height: 80,
+                        borderRadius: '50%',
+                        objectFit: 'cover',
+                        border: '3px solid #000',
+                        marginBottom: 12,
+                      }}
+                    />
+                  ) : (
+                    <div style={{
+                      width: 80,
+                      height: 80,
+                      borderRadius: '50%',
+                      background: colors.primary,
+                      color: colors.white,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: 32,
+                      fontWeight: 700,
+                      marginBottom: 12,
+                      border: '3px solid #000',
+                    }}>
+                      {getInitials(selectedMember.firstName, selectedMember.lastName)}
+                    </div>
                   )}
-                  {selectedMember.instagram && (
-                    <a href={selectedMember.instagram} target="_blank" rel="noopener noreferrer" style={{ fontSize: 14, color: '#E4405F', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg>
-                      Instagram
-                    </a>
-                  )}
-                  {selectedMember.facebook && (
-                    <a href={selectedMember.facebook} target="_blank" rel="noopener noreferrer" style={{ fontSize: 14, color: '#1877F2', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
-                      Facebook
-                    </a>
-                  )}
+                  <div style={{ fontWeight: 700, fontSize: 20, color: colors.primary, marginBottom: 4 }}>{selectedMember.firstName} {selectedMember.lastName}</div>
+                  <div style={{ fontSize: 14, color: '#666', marginBottom: 8 }}>{selectedMember.email}</div>
+                  <div style={{ fontSize: 13, color: '#999', marginBottom: 8 }}>{selectedMember.role ? selectedMember.role.charAt(0).toUpperCase() + selectedMember.role.slice(1) : 'Member'}</div>
                 </div>
-              </div>
-            )}
-            {/* Family Section */}
-            {(familyMembers.father || familyMembers.mother || familyMembers.spouse || familyMembers.children.length > 0 || familyMembers.siblings.length > 0) && (
-              <div style={{ marginBottom: 16, paddingTop: 12, borderTop: '1px solid #E0E0E0' }}>
-                <div style={{ fontSize: 13, fontWeight: 600, color: '#666', marginBottom: 8 }}>Family</div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  {familyMembers.father && (
-                    <div 
-                      onClick={() => handleMemberClick(familyMembers.father!)}
-                      style={{ 
-                        display: 'flex', 
-                        alignItems: 'center', 
-                        gap: 8,
-                        cursor: 'pointer',
-                        padding: 8,
-                        borderRadius: 8,
-                        transition: 'background 0.2s'
-                      }}
-                      onMouseOver={(e) => e.currentTarget.style.background = '#F5F5F5'}
-                      onMouseOut={(e) => e.currentTarget.style.background = 'transparent'}
-                    >
-                      {familyMembers.father.profilePicture ? (
-                        <img 
-                          src={familyMembers.father.profilePicture} 
-                          alt="Father"
-                          style={{ width: 32, height: 32, borderRadius: '50%', objectFit: 'cover' }}
-                        />
-                      ) : (
-                        <div style={{ 
-                          width: 32, 
-                          height: 32, 
-                          borderRadius: '50%', 
-                          background: '#000', 
-                          color: '#fff',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          fontSize: 12,
-                          fontWeight: 600
-                        }}>
-                          {familyMembers.father.firstName.charAt(0)}
-                        </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 16 }}>
+                  {selectedMember.phone && <div style={{ fontSize: 14, color: '#333' }}>📞 {selectedMember.phone}</div>}
+                  {selectedMember.house && <div style={{ fontSize: 14, color: '#333' }}>🏠 {selectedMember.house}</div>}
+                  {selectedMember.gender && <div style={{ fontSize: 14, color: '#333' }}>👤 {selectedMember.gender.charAt(0).toUpperCase() + selectedMember.gender.slice(1)}</div>}
+                  {selectedMember.occupation && <div style={{ fontSize: 14, color: '#333' }}>💼 {selectedMember.occupation}</div>}
+                  {selectedMember.address && <div style={{ fontSize: 14, color: '#333', lineHeight: '1.5' }}>📍 {selectedMember.address}</div>}
+                </div>
+                {(selectedMember.linkedin || selectedMember.instagram || selectedMember.facebook) && (
+                  <div style={{ marginBottom: 16, paddingTop: 12, borderTop: '1px solid #E0E0E0' }}>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: '#666', marginBottom: 8 }}>Social Media</div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                      {selectedMember.linkedin && (
+                        <a href={selectedMember.linkedin} target="_blank" rel="noopener noreferrer" style={{ fontSize: 14, color: '#0077B5', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
+                          LinkedIn
+                        </a>
                       )}
-                      <div>
-                        <div style={{ fontSize: 11, color: '#999' }}>Father</div>
-                        <div style={{ fontSize: 14, fontWeight: 500, color: '#333' }}>
-                          {familyMembers.father.firstName} {familyMembers.father.lastName}
-                        </div>
-                        {familyMembers.father.house && (
-                          <div style={{ fontSize: 11, color: '#999' }}>🏠 {familyMembers.father.house}</div>
-                        )}
-                      </div>
-                    </div>
-                  )}
-                  {familyMembers.mother && (
-                    <div 
-                      onClick={() => handleMemberClick(familyMembers.mother!)}
-                      style={{ 
-                        display: 'flex', 
-                        alignItems: 'center', 
-                        gap: 8,
-                        cursor: 'pointer',
-                        padding: 8,
-                        borderRadius: 8,
-                        transition: 'background 0.2s'
-                      }}
-                      onMouseOver={(e) => e.currentTarget.style.background = '#F5F5F5'}
-                      onMouseOut={(e) => e.currentTarget.style.background = 'transparent'}
-                    >
-                      {familyMembers.mother.profilePicture ? (
-                        <img 
-                          src={familyMembers.mother.profilePicture} 
-                          alt="Mother"
-                          style={{ width: 32, height: 32, borderRadius: '50%', objectFit: 'cover' }}
-                        />
-                      ) : (
-                        <div style={{ 
-                          width: 32, 
-                          height: 32, 
-                          borderRadius: '50%', 
-                          background: '#000', 
-                          color: '#fff',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          fontSize: 12,
-                          fontWeight: 600
-                        }}>
-                          {familyMembers.mother.firstName.charAt(0)}
-                        </div>
+                      {selectedMember.instagram && (
+                        <a href={selectedMember.instagram} target="_blank" rel="noopener noreferrer" style={{ fontSize: 14, color: '#E4405F', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg>
+                          Instagram
+                        </a>
                       )}
-                      <div>
-                        <div style={{ fontSize: 11, color: '#999' }}>Mother</div>
-                        <div style={{ fontSize: 14, fontWeight: 500, color: '#333' }}>
-                          {familyMembers.mother.firstName} {familyMembers.mother.lastName}
-                        </div>
-                        {familyMembers.mother.house && (
-                          <div style={{ fontSize: 11, color: '#999' }}>🏠 {familyMembers.mother.house}</div>
-                        )}
-                      </div>
-                    </div>
-                  )}
-                  {familyMembers.spouse && (
-                    <div 
-                      onClick={() => handleMemberClick(familyMembers.spouse!)}
-                      style={{ 
-                        display: 'flex', 
-                        alignItems: 'center', 
-                        gap: 8,
-                        cursor: 'pointer',
-                        padding: 8,
-                        borderRadius: 8,
-                        transition: 'background 0.2s'
-                      }}
-                      onMouseOver={(e) => e.currentTarget.style.background = '#F5F5F5'}
-                      onMouseOut={(e) => e.currentTarget.style.background = 'transparent'}
-                    >
-                      {familyMembers.spouse.profilePicture ? (
-                        <img 
-                          src={familyMembers.spouse.profilePicture} 
-                          alt="Spouse"
-                          style={{ width: 32, height: 32, borderRadius: '50%', objectFit: 'cover' }}
-                        />
-                      ) : (
-                        <div style={{ 
-                          width: 32, 
-                          height: 32, 
-                          borderRadius: '50%', 
-                          background: '#000', 
-                          color: '#fff',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          fontSize: 12,
-                          fontWeight: 600
-                        }}>
-                          {familyMembers.spouse.firstName.charAt(0)}
-                        </div>
+                      {selectedMember.facebook && (
+                        <a href={selectedMember.facebook} target="_blank" rel="noopener noreferrer" style={{ fontSize: 14, color: '#1877F2', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
+                          Facebook
+                        </a>
                       )}
-                      <div>
-                        <div style={{ fontSize: 11, color: '#999' }}>Spouse</div>
-                        <div style={{ fontSize: 14, fontWeight: 500, color: '#333' }}>
-                          {familyMembers.spouse.firstName} {familyMembers.spouse.lastName}
-                        </div>
-                        {familyMembers.spouse.house && (
-                          <div style={{ fontSize: 11, color: '#999' }}>🏠 {familyMembers.spouse.house}</div>
-                        )}
-                      </div>
                     </div>
-                  )}
-                  {familyMembers.children.map((child) => (
-                    <div 
-                      key={child._id} 
-                      onClick={() => handleMemberClick(child)}
-                      style={{ 
-                        display: 'flex', 
-                        alignItems: 'center', 
-                        gap: 8,
-                        cursor: 'pointer',
-                        padding: 8,
-                        borderRadius: 8,
-                        transition: 'background 0.2s'
-                      }}
-                      onMouseOver={(e) => e.currentTarget.style.background = '#F5F5F5'}
-                      onMouseOut={(e) => e.currentTarget.style.background = 'transparent'}
-                    >
-                      {child.profilePicture ? (
-                        <img 
-                          src={child.profilePicture} 
-                          alt="Child"
-                          style={{ width: 32, height: 32, borderRadius: '50%', objectFit: 'cover' }}
-                        />
-                      ) : (
-                        <div style={{ 
-                          width: 32, 
-                          height: 32, 
-                          borderRadius: '50%', 
-                          background: '#000', 
-                          color: '#fff',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          fontSize: 12,
-                          fontWeight: 600
-                        }}>
-                          {child.firstName.charAt(0)}
-                        </div>
-                      )}
-                      <div>
-                        <div style={{ fontSize: 11, color: '#999' }}>Child</div>
-                        <div style={{ fontSize: 14, fontWeight: 500, color: '#333' }}>
-                          {child.firstName} {child.lastName}
-                        </div>
-                        {child.house && (
-                          <div style={{ fontSize: 11, color: '#999' }}>🏠 {child.house}</div>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                  {familyMembers.siblings.map((sibling) => (
-                    <div 
-                      key={sibling._id} 
-                      onClick={() => handleMemberClick(sibling)}
-                      style={{ 
-                        display: 'flex', 
-                        alignItems: 'center', 
-                        gap: 8,
-                        cursor: 'pointer',
-                        padding: 8,
-                        borderRadius: 8,
-                        transition: 'background 0.2s'
-                      }}
-                      onMouseOver={(e) => e.currentTarget.style.background = '#F5F5F5'}
-                      onMouseOut={(e) => e.currentTarget.style.background = 'transparent'}
-                    >
-                      {sibling.profilePicture ? (
-                        <img 
-                          src={sibling.profilePicture} 
-                          alt="Sibling"
-                          style={{ width: 32, height: 32, borderRadius: '50%', objectFit: 'cover' }}
-                        />
-                      ) : (
-                        <div style={{ 
-                          width: 32, 
-                          height: 32, 
-                          borderRadius: '50%', 
-                          background: '#000', 
-                          color: '#fff',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          fontSize: 12,
-                          fontWeight: 600
-                        }}>
-                          {sibling.firstName.charAt(0)}
-                        </div>
-                      )}
-                      <div>
-                        <div style={{ fontSize: 11, color: '#999' }}>Sibling</div>
-                        <div style={{ fontSize: 14, fontWeight: 500, color: '#333' }}>
-                          {sibling.firstName} {sibling.lastName}
-                        </div>
-                        {sibling.house && (
-                          <div style={{ fontSize: 11, color: '#999' }}>🏠 {sibling.house}</div>
-                        )}
-                      </div>
-                    </div>
-                  ))}
+                  </div>
+                )}
+                
+                {/* Swipe Indicator */}
+                <div style={{ textAlign: 'center', padding: '12px 0', color: '#999', fontSize: 12, borderTop: '1px solid #E0E0E0', marginTop: 16 }}>
+                  ← Swipe left for family tree →
+                </div>
+
+                <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+                  <a 
+                    href={`https://wa.me/${selectedMember.phone?.replace(/[^0-9]/g, '')}`} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    style={{ 
+                      flex: 1, 
+                      padding: '10px 0', 
+                      borderRadius: 8, 
+                      border: 'none', 
+                      background: '#25D366', 
+                      color: colors.white, 
+                      fontWeight: 600, 
+                      fontSize: 13, 
+                      cursor: 'pointer', 
+                      textAlign: 'center', 
+                      textDecoration: 'none', 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      justifyContent: 'center', 
+                      gap: 4 
+                    }}
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/>
+                    </svg>
+                    WhatsApp
+                  </a>
+                  <a href={`tel:${selectedMember.phone}`} style={{ flex: 1, padding: '10px 0', borderRadius: 8, border: 'none', background: colors.primary, color: colors.white, fontWeight: 600, fontSize: 15, cursor: 'pointer', textAlign: 'center', textDecoration: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}><Phone size={18} />Call</a>
+                  <a href={`mailto:${selectedMember.email}`} style={{ flex: 1, padding: '10px 0', borderRadius: 8, border: 'none', background: colors.primary, color: colors.white, fontWeight: 600, fontSize: 15, cursor: 'pointer', textAlign: 'center', textDecoration: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}><Mail size={18} />Email</a>
                 </div>
               </div>
             )}
-            <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-              <a 
-                href={`https://wa.me/${selectedMember.phone?.replace(/[^0-9]/g, '')}`} 
-                target="_blank" 
-                rel="noopener noreferrer"
-                style={{ 
-                  flex: 1, 
-                  padding: '10px 0', 
-                  borderRadius: 8, 
-                  border: 'none', 
-                  background: '#25D366', 
-                  color: colors.white, 
-                  fontWeight: 600, 
-                  fontSize: 13, 
-                  cursor: 'pointer', 
-                  textAlign: 'center', 
-                  textDecoration: 'none', 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  justifyContent: 'center', 
-                  gap: 4 
-                }}
-              >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/>
-                </svg>
-                WhatsApp
-              </a>
-              <a href={`tel:${selectedMember.phone}`} style={{ flex: 1, padding: '10px 0', borderRadius: 8, border: 'none', background: colors.primary, color: colors.white, fontWeight: 600, fontSize: 15, cursor: 'pointer', textAlign: 'center', textDecoration: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}><Phone size={18} />Call</a>
-              <a href={`mailto:${selectedMember.email}`} style={{ flex: 1, padding: '10px 0', borderRadius: 8, border: 'none', background: colors.primary, color: colors.white, fontWeight: 600, fontSize: 15, cursor: 'pointer', textAlign: 'center', textDecoration: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}><Mail size={18} />Email</a>
-            </div>
+
+            {/* Step 2: Family Tree */}
+            {modalStep === 1 && (
+              <div>
+                <div style={{ textAlign: 'center', fontSize: 18, fontWeight: 700, color: colors.primary, marginBottom: 20 }}>Family Tree</div>
+                
+                {/* Parents Section */}
+                {(familyMembers.father || familyMembers.mother) && (
+                  <div style={{ marginBottom: 24 }}>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: '#666', marginBottom: 8, textAlign: 'center' }}>PARENTS</div>
+                    <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
+                      {familyMembers.father && (
+                        <div 
+                          onClick={() => handleMemberClick(familyMembers.father!)}
+                          style={{ 
+                            flex: 1,
+                            maxWidth: 140,
+                            padding: 12, 
+                            background: colors.gray.light, 
+                            borderRadius: 12, 
+                            cursor: 'pointer', 
+                            display: 'flex', 
+                            flexDirection: 'column',
+                            alignItems: 'center', 
+                            gap: 8,
+                            transition: 'all 0.2s',
+                            border: '2px solid transparent'
+                          }}
+                          onMouseOver={(e) => {
+                            e.currentTarget.style.background = colors.gray.border;
+                            e.currentTarget.style.transform = 'translateY(-2px)';
+                          }}
+                          onMouseOut={(e) => {
+                            e.currentTarget.style.background = colors.gray.light;
+                            e.currentTarget.style.transform = 'translateY(0)';
+                          }}
+                        >
+                          {familyMembers.father.profilePicture ? (
+                            <img 
+                              src={familyMembers.father.profilePicture} 
+                              alt={familyMembers.father.firstName}
+                              style={{ width: 60, height: 60, borderRadius: '50%', objectFit: 'cover', border: '3px solid ' + colors.primary }}
+                            />
+                          ) : (
+                            <div style={{ 
+                              width: 60, 
+                              height: 60, 
+                              borderRadius: '50%', 
+                              background: colors.primary, 
+                              color: colors.white, 
+                              display: 'flex', 
+                              alignItems: 'center', 
+                              justifyContent: 'center',
+                              fontSize: 24,
+                              fontWeight: 700,
+                              border: '3px solid ' + colors.primary
+                            }}>
+                              {familyMembers.father.firstName.charAt(0)}
+                            </div>
+                          )}
+                          <div style={{ textAlign: 'center', width: '100%' }}>
+                            <div style={{ fontSize: 13, fontWeight: 600, color: colors.primary, marginBottom: 2, wordBreak: 'break-word' }}>
+                              {familyMembers.father.firstName}
+                            </div>
+                            {familyMembers.father.house && (
+                              <div style={{ fontSize: 10, color: '#999' }}>🏠 {familyMembers.father.house}</div>
+                            )}
+                            <div style={{ fontSize: 10, color: '#666', marginTop: 4 }}>Father</div>
+                          </div>
+                        </div>
+                      )}
+                      {familyMembers.mother && (
+                        <div 
+                          onClick={() => handleMemberClick(familyMembers.mother!)}
+                          style={{ 
+                            flex: 1,
+                            maxWidth: 140,
+                            padding: 12, 
+                            background: colors.gray.light, 
+                            borderRadius: 12, 
+                            cursor: 'pointer', 
+                            display: 'flex', 
+                            flexDirection: 'column',
+                            alignItems: 'center', 
+                            gap: 8,
+                            transition: 'all 0.2s',
+                            border: '2px solid transparent'
+                          }}
+                          onMouseOver={(e) => {
+                            e.currentTarget.style.background = colors.gray.border;
+                            e.currentTarget.style.transform = 'translateY(-2px)';
+                          }}
+                          onMouseOut={(e) => {
+                            e.currentTarget.style.background = colors.gray.light;
+                            e.currentTarget.style.transform = 'translateY(0)';
+                          }}
+                        >
+                          {familyMembers.mother.profilePicture ? (
+                            <img 
+                              src={familyMembers.mother.profilePicture} 
+                              alt={familyMembers.mother.firstName}
+                              style={{ width: 60, height: 60, borderRadius: '50%', objectFit: 'cover', border: '3px solid ' + colors.primary }}
+                            />
+                          ) : (
+                            <div style={{ 
+                              width: 60, 
+                              height: 60, 
+                              borderRadius: '50%', 
+                              background: colors.primary, 
+                              color: colors.white, 
+                              display: 'flex', 
+                              alignItems: 'center', 
+                              justifyContent: 'center',
+                              fontSize: 24,
+                              fontWeight: 700,
+                              border: '3px solid ' + colors.primary
+                            }}>
+                              {familyMembers.mother.firstName.charAt(0)}
+                            </div>
+                          )}
+                          <div style={{ textAlign: 'center', width: '100%' }}>
+                            <div style={{ fontSize: 13, fontWeight: 600, color: colors.primary, marginBottom: 2, wordBreak: 'break-word' }}>
+                              {familyMembers.mother.firstName}
+                            </div>
+                            {familyMembers.mother.house && (
+                              <div style={{ fontSize: 10, color: '#999' }}>🏠 {familyMembers.mother.house}</div>
+                            )}
+                            <div style={{ fontSize: 10, color: '#666', marginTop: 4 }}>Mother</div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Siblings + Current User Section */}
+                {(familyMembers.siblings.length > 0 || selectedMember) && (
+                  <div style={{ marginBottom: 24 }}>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: '#666', marginBottom: 8, textAlign: 'center' }}>SIBLINGS</div>
+                    <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 8 }}>
+                      {familyMembers.siblings.map((sibling) => (
+                        <div 
+                          key={sibling._id}
+                          onClick={() => handleMemberClick(sibling)}
+                          style={{ 
+                            minWidth: 100,
+                            padding: 10, 
+                            background: colors.gray.light, 
+                            borderRadius: 10, 
+                            cursor: 'pointer', 
+                            display: 'flex', 
+                            flexDirection: 'column',
+                            alignItems: 'center', 
+                            gap: 6,
+                            transition: 'all 0.2s',
+                            border: '2px solid transparent'
+                          }}
+                          onMouseOver={(e) => {
+                            e.currentTarget.style.background = colors.gray.border;
+                            e.currentTarget.style.transform = 'translateY(-2px)';
+                          }}
+                          onMouseOut={(e) => {
+                            e.currentTarget.style.background = colors.gray.light;
+                            e.currentTarget.style.transform = 'translateY(0)';
+                          }}
+                        >
+                          {sibling.profilePicture ? (
+                            <img 
+                              src={sibling.profilePicture} 
+                              alt={sibling.firstName}
+                              style={{ width: 50, height: 50, borderRadius: '50%', objectFit: 'cover' }}
+                            />
+                          ) : (
+                            <div style={{ 
+                              width: 50, 
+                              height: 50, 
+                              borderRadius: '50%', 
+                              background: colors.primary, 
+                              color: colors.white, 
+                              display: 'flex', 
+                              alignItems: 'center', 
+                              justifyContent: 'center',
+                              fontSize: 18,
+                              fontWeight: 600
+                            }}>
+                              {sibling.firstName.charAt(0)}
+                            </div>
+                          )}
+                          <div style={{ textAlign: 'center', width: '100%' }}>
+                            <div style={{ fontSize: 11, fontWeight: 600, color: colors.primary, wordBreak: 'break-word' }}>
+                              {sibling.firstName}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                      {/* Current User - Highlighted */}
+                      <div 
+                        style={{ 
+                          minWidth: 100,
+                          padding: 10, 
+                          background: colors.primary, 
+                          borderRadius: 10, 
+                          display: 'flex', 
+                          flexDirection: 'column',
+                          alignItems: 'center', 
+                          gap: 6,
+                          border: '3px solid ' + colors.primary,
+                          boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
+                        }}
+                      >
+                        {selectedMember.profilePicture ? (
+                          <img 
+                            src={selectedMember.profilePicture} 
+                            alt={selectedMember.firstName}
+                            style={{ width: 50, height: 50, borderRadius: '50%', objectFit: 'cover', border: '3px solid white' }}
+                          />
+                        ) : (
+                          <div style={{ 
+                            width: 50, 
+                            height: 50, 
+                            borderRadius: '50%', 
+                            background: colors.white, 
+                            color: colors.primary, 
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            justifyContent: 'center',
+                            fontSize: 18,
+                            fontWeight: 700,
+                            border: '3px solid white'
+                          }}>
+                            {selectedMember.firstName.charAt(0)}
+                          </div>
+                        )}
+                        <div style={{ textAlign: 'center', width: '100%' }}>
+                          <div style={{ fontSize: 11, fontWeight: 700, color: colors.white, wordBreak: 'break-word' }}>
+                            {selectedMember.firstName}
+                          </div>
+                          <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.9)', marginTop: 2 }}>You</div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Spouse Section */}
+                {familyMembers.spouse && (
+                  <div style={{ marginBottom: 24 }}>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: '#666', marginBottom: 8, textAlign: 'center' }}>SPOUSE</div>
+                    <div style={{ display: 'flex', justifyContent: 'center' }}>
+                      <div 
+                        onClick={() => handleMemberClick(familyMembers.spouse!)}
+                        style={{ 
+                          maxWidth: 140,
+                          padding: 12, 
+                          background: colors.gray.light, 
+                          borderRadius: 12, 
+                          cursor: 'pointer', 
+                          display: 'flex', 
+                          flexDirection: 'column',
+                          alignItems: 'center', 
+                          gap: 8,
+                          transition: 'all 0.2s',
+                          border: '2px solid transparent'
+                        }}
+                        onMouseOver={(e) => {
+                          e.currentTarget.style.background = colors.gray.border;
+                          e.currentTarget.style.transform = 'translateY(-2px)';
+                        }}
+                        onMouseOut={(e) => {
+                          e.currentTarget.style.background = colors.gray.light;
+                          e.currentTarget.style.transform = 'translateY(0)';
+                        }}
+                      >
+                        {familyMembers.spouse.profilePicture ? (
+                          <img 
+                            src={familyMembers.spouse.profilePicture} 
+                            alt={familyMembers.spouse.firstName}
+                            style={{ width: 60, height: 60, borderRadius: '50%', objectFit: 'cover', border: '3px solid ' + colors.primary }}
+                          />
+                        ) : (
+                          <div style={{ 
+                            width: 60, 
+                            height: 60, 
+                            borderRadius: '50%', 
+                            background: colors.primary, 
+                            color: colors.white, 
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            justifyContent: 'center',
+                            fontSize: 24,
+                            fontWeight: 700,
+                            border: '3px solid ' + colors.primary
+                          }}>
+                            {familyMembers.spouse.firstName.charAt(0)}
+                          </div>
+                        )}
+                        <div style={{ textAlign: 'center', width: '100%' }}>
+                          <div style={{ fontSize: 13, fontWeight: 600, color: colors.primary, marginBottom: 2, wordBreak: 'break-word' }}>
+                            {familyMembers.spouse.firstName}
+                          </div>
+                          {familyMembers.spouse.house && (
+                            <div style={{ fontSize: 10, color: '#999' }}>🏠 {familyMembers.spouse.house}</div>
+                          )}
+                          <div style={{ fontSize: 10, color: '#666', marginTop: 4 }}>Spouse</div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Children Section */}
+                {familyMembers.children.length > 0 && (
+                  <div style={{ marginBottom: 24 }}>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: '#666', marginBottom: 8, textAlign: 'center' }}>CHILDREN</div>
+                    <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 8 }}>
+                      {familyMembers.children.map((child) => (
+                        <div 
+                          key={child._id}
+                          onClick={() => handleMemberClick(child)}
+                          style={{ 
+                            minWidth: 100,
+                            padding: 10, 
+                            background: colors.gray.light, 
+                            borderRadius: 10, 
+                            cursor: 'pointer', 
+                            display: 'flex', 
+                            flexDirection: 'column',
+                            alignItems: 'center', 
+                            gap: 6,
+                            transition: 'all 0.2s',
+                            border: '2px solid transparent'
+                          }}
+                          onMouseOver={(e) => {
+                            e.currentTarget.style.background = colors.gray.border;
+                            e.currentTarget.style.transform = 'translateY(-2px)';
+                          }}
+                          onMouseOut={(e) => {
+                            e.currentTarget.style.background = colors.gray.light;
+                            e.currentTarget.style.transform = 'translateY(0)';
+                          }}
+                        >
+                          {child.profilePicture ? (
+                            <img 
+                              src={child.profilePicture} 
+                              alt={child.firstName}
+                              style={{ width: 50, height: 50, borderRadius: '50%', objectFit: 'cover' }}
+                            />
+                          ) : (
+                            <div style={{ 
+                              width: 50, 
+                              height: 50, 
+                              borderRadius: '50%', 
+                              background: colors.primary, 
+                              color: colors.white, 
+                              display: 'flex', 
+                              alignItems: 'center', 
+                              justifyContent: 'center',
+                              fontSize: 18,
+                              fontWeight: 600
+                            }}>
+                              {child.firstName.charAt(0)}
+                            </div>
+                          )}
+                          <div style={{ textAlign: 'center', width: '100%' }}>
+                            <div style={{ fontSize: 11, fontWeight: 600, color: colors.primary, wordBreak: 'break-word' }}>
+                              {child.firstName}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Swipe Indicator */}
+                <div style={{ textAlign: 'center', padding: '12px 0', color: '#999', fontSize: 12, borderTop: '1px solid #E0E0E0', marginTop: 8 }}>
+                  ← Swipe right for profile →
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
