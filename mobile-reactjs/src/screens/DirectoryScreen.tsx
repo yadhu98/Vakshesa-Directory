@@ -704,381 +704,291 @@ const DirectoryScreen: React.FC = () => {
               </div>
             )}
 
-            {/* Step 2: Family Tree */}
+            {/* Step 2: Family */}
             {modalStep === 1 && (
               <div>
-                <div style={{ textAlign: 'center', fontSize: 18, fontWeight: 700, color: colors.primary, marginBottom: 20 }}>Family Tree</div>
+                <div style={{ textAlign: 'center', fontSize: 18, fontWeight: 700, color: colors.primary, marginBottom: 20 }}>Family</div>
                 
-                {/* Parents Section */}
-                {(familyMembers.father || familyMembers.mother) && (
-                  <div style={{ marginBottom: 24 }}>
-                    <div style={{ fontSize: 12, fontWeight: 600, color: '#666', marginBottom: 8, textAlign: 'center' }}>PARENTS</div>
-                    <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
-                      {familyMembers.father && (
-                        <div 
-                          onClick={() => handleMemberClick(familyMembers.father!)}
-                          style={{ 
-                            flex: 1,
-                            maxWidth: 140,
-                            padding: 12, 
-                            background: colors.gray.light, 
-                            borderRadius: 12, 
-                            cursor: 'pointer', 
-                            display: 'flex', 
-                            flexDirection: 'column',
-                            alignItems: 'center', 
-                            gap: 8,
-                            transition: 'all 0.2s',
-                            border: '2px solid transparent'
-                          }}
-                          onMouseOver={(e) => {
-                            e.currentTarget.style.background = colors.gray.border;
-                            e.currentTarget.style.transform = 'translateY(-2px)';
-                          }}
-                          onMouseOut={(e) => {
-                            e.currentTarget.style.background = colors.gray.light;
-                            e.currentTarget.style.transform = 'translateY(0)';
-                          }}
-                        >
-                          {familyMembers.father.profilePicture ? (
-                            <img 
-                              src={familyMembers.father.profilePicture} 
-                              alt={familyMembers.father.firstName}
-                              style={{ width: 60, height: 60, borderRadius: '50%', objectFit: 'cover', border: '3px solid ' + colors.primary }}
-                            />
-                          ) : (
-                            <div style={{ 
-                              width: 60, 
-                              height: 60, 
-                              borderRadius: '50%', 
-                              background: colors.primary, 
-                              color: colors.white, 
-                              display: 'flex', 
-                              alignItems: 'center', 
-                              justifyContent: 'center',
-                              fontSize: 24,
-                              fontWeight: 700,
-                              border: '3px solid ' + colors.primary
-                            }}>
-                              {familyMembers.father.firstName.charAt(0)}
-                            </div>
-                          )}
-                          <div style={{ textAlign: 'center', width: '100%' }}>
-                            <div style={{ fontSize: 13, fontWeight: 600, color: colors.primary, marginBottom: 2, wordBreak: 'break-word' }}>
-                              {familyMembers.father.firstName}
-                            </div>
-                            {familyMembers.father.house && (
-                              <div style={{ fontSize: 10, color: '#999' }}>🏠 {familyMembers.father.house}</div>
-                            )}
-                            <div style={{ fontSize: 10, color: '#666', marginTop: 4 }}>Father</div>
-                          </div>
-                        </div>
-                      )}
-                      {familyMembers.mother && (
-                        <div 
-                          onClick={() => handleMemberClick(familyMembers.mother!)}
-                          style={{ 
-                            flex: 1,
-                            maxWidth: 140,
-                            padding: 12, 
-                            background: colors.gray.light, 
-                            borderRadius: 12, 
-                            cursor: 'pointer', 
-                            display: 'flex', 
-                            flexDirection: 'column',
-                            alignItems: 'center', 
-                            gap: 8,
-                            transition: 'all 0.2s',
-                            border: '2px solid transparent'
-                          }}
-                          onMouseOver={(e) => {
-                            e.currentTarget.style.background = colors.gray.border;
-                            e.currentTarget.style.transform = 'translateY(-2px)';
-                          }}
-                          onMouseOut={(e) => {
-                            e.currentTarget.style.background = colors.gray.light;
-                            e.currentTarget.style.transform = 'translateY(0)';
-                          }}
-                        >
-                          {familyMembers.mother.profilePicture ? (
-                            <img 
-                              src={familyMembers.mother.profilePicture} 
-                              alt={familyMembers.mother.firstName}
-                              style={{ width: 60, height: 60, borderRadius: '50%', objectFit: 'cover', border: '3px solid ' + colors.primary }}
-                            />
-                          ) : (
-                            <div style={{ 
-                              width: 60, 
-                              height: 60, 
-                              borderRadius: '50%', 
-                              background: colors.primary, 
-                              color: colors.white, 
-                              display: 'flex', 
-                              alignItems: 'center', 
-                              justifyContent: 'center',
-                              fontSize: 24,
-                              fontWeight: 700,
-                              border: '3px solid ' + colors.primary
-                            }}>
-                              {familyMembers.mother.firstName.charAt(0)}
-                            </div>
-                          )}
-                          <div style={{ textAlign: 'center', width: '100%' }}>
-                            <div style={{ fontSize: 13, fontWeight: 600, color: colors.primary, marginBottom: 2, wordBreak: 'break-word' }}>
-                              {familyMembers.mother.firstName}
-                            </div>
-                            {familyMembers.mother.house && (
-                              <div style={{ fontSize: 10, color: '#999' }}>🏠 {familyMembers.mother.house}</div>
-                            )}
-                            <div style={{ fontSize: 10, color: '#666', marginTop: 4 }}>Mother</div>
-                          </div>
-                        </div>
-                      )}
-                    </div>
+                {(!familyMembers.father && !familyMembers.mother && !familyMembers.spouse && familyMembers.children.length === 0 && familyMembers.siblings.length === 0) ? (
+                  <div style={{ textAlign: 'center', color: colors.gray.dark, padding: '40px 20px' }}>
+                    No family information available
                   </div>
-                )}
-
-                {/* Siblings + Current User Section */}
-                {(familyMembers.siblings.length > 0 || selectedMember) && (
-                  <div style={{ marginBottom: 24 }}>
-                    <div style={{ fontSize: 12, fontWeight: 600, color: '#666', marginBottom: 8, textAlign: 'center' }}>SIBLINGS</div>
-                    <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 8 }}>
-                      {familyMembers.siblings.map((sibling) => (
-                        <div 
-                          key={sibling._id}
-                          onClick={() => handleMemberClick(sibling)}
-                          style={{ 
-                            minWidth: 100,
-                            padding: 10, 
-                            background: colors.gray.light, 
-                            borderRadius: 10, 
-                            cursor: 'pointer', 
-                            display: 'flex', 
-                            flexDirection: 'column',
-                            alignItems: 'center', 
-                            gap: 6,
-                            transition: 'all 0.2s',
-                            border: '2px solid transparent'
-                          }}
-                          onMouseOver={(e) => {
-                            e.currentTarget.style.background = colors.gray.border;
-                            e.currentTarget.style.transform = 'translateY(-2px)';
-                          }}
-                          onMouseOut={(e) => {
-                            e.currentTarget.style.background = colors.gray.light;
-                            e.currentTarget.style.transform = 'translateY(0)';
-                          }}
-                        >
-                          {sibling.profilePicture ? (
-                            <img 
-                              src={sibling.profilePicture} 
-                              alt={sibling.firstName}
-                              style={{ width: 50, height: 50, borderRadius: '50%', objectFit: 'cover' }}
-                            />
-                          ) : (
-                            <div style={{ 
-                              width: 50, 
-                              height: 50, 
-                              borderRadius: '50%', 
-                              background: colors.primary, 
-                              color: colors.white, 
-                              display: 'flex', 
-                              alignItems: 'center', 
-                              justifyContent: 'center',
-                              fontSize: 18,
-                              fontWeight: 600
-                            }}>
-                              {sibling.firstName.charAt(0)}
-                            </div>
-                          )}
-                          <div style={{ textAlign: 'center', width: '100%' }}>
-                            <div style={{ fontSize: 11, fontWeight: 600, color: colors.primary, wordBreak: 'break-word' }}>
-                              {sibling.firstName}
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                      {/* Current User - Highlighted */}
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    {/* Father */}
+                    {familyMembers.father && (
                       <div 
+                        onClick={() => handleMemberClick(familyMembers.father!)}
                         style={{ 
-                          minWidth: 100,
-                          padding: 10, 
-                          background: colors.primary, 
-                          borderRadius: 10, 
-                          display: 'flex', 
-                          flexDirection: 'column',
-                          alignItems: 'center', 
-                          gap: 6,
-                          border: '3px solid ' + colors.primary,
-                          boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
-                        }}
-                      >
-                        {selectedMember.profilePicture ? (
-                          <img 
-                            src={selectedMember.profilePicture} 
-                            alt={selectedMember.firstName}
-                            style={{ width: 50, height: 50, borderRadius: '50%', objectFit: 'cover', border: '3px solid white' }}
-                          />
-                        ) : (
-                          <div style={{ 
-                            width: 50, 
-                            height: 50, 
-                            borderRadius: '50%', 
-                            background: colors.white, 
-                            color: colors.primary, 
-                            display: 'flex', 
-                            alignItems: 'center', 
-                            justifyContent: 'center',
-                            fontSize: 18,
-                            fontWeight: 700,
-                            border: '3px solid white'
-                          }}>
-                            {selectedMember.firstName.charAt(0)}
-                          </div>
-                        )}
-                        <div style={{ textAlign: 'center', width: '100%' }}>
-                          <div style={{ fontSize: 11, fontWeight: 700, color: colors.white, wordBreak: 'break-word' }}>
-                            {selectedMember.firstName}
-                          </div>
-                          <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.9)', marginTop: 2 }}>You</div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Spouse Section */}
-                {familyMembers.spouse && (
-                  <div style={{ marginBottom: 24 }}>
-                    <div style={{ fontSize: 12, fontWeight: 600, color: '#666', marginBottom: 8, textAlign: 'center' }}>SPOUSE</div>
-                    <div style={{ display: 'flex', justifyContent: 'center' }}>
-                      <div 
-                        onClick={() => handleMemberClick(familyMembers.spouse!)}
-                        style={{ 
-                          maxWidth: 140,
-                          padding: 12, 
-                          background: colors.gray.light, 
-                          borderRadius: 12, 
+                          padding: 8, 
+                          background: colors.white, 
+                          borderRadius: 8, 
                           cursor: 'pointer', 
                           display: 'flex', 
-                          flexDirection: 'column',
                           alignItems: 'center', 
-                          gap: 8,
-                          transition: 'all 0.2s',
-                          border: '2px solid transparent'
+                          gap: 12,
+                          transition: 'background 0.2s'
                         }}
-                        onMouseOver={(e) => {
-                          e.currentTarget.style.background = colors.gray.border;
-                          e.currentTarget.style.transform = 'translateY(-2px)';
-                        }}
-                        onMouseOut={(e) => {
-                          e.currentTarget.style.background = colors.gray.light;
-                          e.currentTarget.style.transform = 'translateY(0)';
-                        }}
+                        onMouseOver={(e) => e.currentTarget.style.background = colors.gray.light}
+                        onMouseOut={(e) => e.currentTarget.style.background = colors.white}
                       >
-                        {familyMembers.spouse.profilePicture ? (
+                        {familyMembers.father.profilePicture ? (
                           <img 
-                            src={familyMembers.spouse.profilePicture} 
-                            alt={familyMembers.spouse.firstName}
-                            style={{ width: 60, height: 60, borderRadius: '50%', objectFit: 'cover', border: '3px solid ' + colors.primary }}
+                            src={familyMembers.father.profilePicture} 
+                            alt={familyMembers.father.firstName}
+                            style={{ width: 32, height: 32, borderRadius: '50%', objectFit: 'cover' }}
                           />
                         ) : (
                           <div style={{ 
-                            width: 60, 
-                            height: 60, 
+                            width: 32, 
+                            height: 32, 
                             borderRadius: '50%', 
                             background: colors.primary, 
                             color: colors.white, 
                             display: 'flex', 
                             alignItems: 'center', 
                             justifyContent: 'center',
-                            fontSize: 24,
-                            fontWeight: 700,
-                            border: '3px solid ' + colors.primary
+                            fontSize: 14,
+                            fontWeight: 600
+                          }}>
+                            {familyMembers.father.firstName.charAt(0)}
+                          </div>
+                        )}
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontSize: 14, fontWeight: 600, color: colors.primary }}>
+                            {familyMembers.father.firstName} {familyMembers.father.lastName}
+                          </div>
+                          <div style={{ fontSize: 11, color: colors.gray.medium, marginTop: 2 }}>
+                            Father {familyMembers.father.house && `• 🏠 ${familyMembers.father.house}`}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Mother */}
+                    {familyMembers.mother && (
+                      <div 
+                        onClick={() => handleMemberClick(familyMembers.mother!)}
+                        style={{ 
+                          padding: 8, 
+                          background: colors.white, 
+                          borderRadius: 8, 
+                          cursor: 'pointer', 
+                          display: 'flex', 
+                          alignItems: 'center', 
+                          gap: 12,
+                          transition: 'background 0.2s'
+                        }}
+                        onMouseOver={(e) => e.currentTarget.style.background = colors.gray.light}
+                        onMouseOut={(e) => e.currentTarget.style.background = colors.white}
+                      >
+                        {familyMembers.mother.profilePicture ? (
+                          <img 
+                            src={familyMembers.mother.profilePicture} 
+                            alt={familyMembers.mother.firstName}
+                            style={{ width: 32, height: 32, borderRadius: '50%', objectFit: 'cover' }}
+                          />
+                        ) : (
+                          <div style={{ 
+                            width: 32, 
+                            height: 32, 
+                            borderRadius: '50%', 
+                            background: colors.primary, 
+                            color: colors.white, 
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            justifyContent: 'center',
+                            fontSize: 14,
+                            fontWeight: 600
+                          }}>
+                            {familyMembers.mother.firstName.charAt(0)}
+                          </div>
+                        )}
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontSize: 14, fontWeight: 600, color: colors.primary }}>
+                            {familyMembers.mother.firstName} {familyMembers.mother.lastName}
+                          </div>
+                          <div style={{ fontSize: 11, color: colors.gray.medium, marginTop: 2 }}>
+                            Mother {familyMembers.mother.house && `• 🏠 ${familyMembers.mother.house}`}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Spouse */}
+                    {familyMembers.spouse && (
+                      <div 
+                        onClick={() => handleMemberClick(familyMembers.spouse!)}
+                        style={{ 
+                          padding: 8, 
+                          background: colors.white, 
+                          borderRadius: 8, 
+                          cursor: 'pointer', 
+                          display: 'flex', 
+                          alignItems: 'center', 
+                          gap: 12,
+                          transition: 'background 0.2s'
+                        }}
+                        onMouseOver={(e) => e.currentTarget.style.background = colors.gray.light}
+                        onMouseOut={(e) => e.currentTarget.style.background = colors.white}
+                      >
+                        {familyMembers.spouse.profilePicture ? (
+                          <img 
+                            src={familyMembers.spouse.profilePicture} 
+                            alt={familyMembers.spouse.firstName}
+                            style={{ width: 32, height: 32, borderRadius: '50%', objectFit: 'cover' }}
+                          />
+                        ) : (
+                          <div style={{ 
+                            width: 32, 
+                            height: 32, 
+                            borderRadius: '50%', 
+                            background: colors.primary, 
+                            color: colors.white, 
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            justifyContent: 'center',
+                            fontSize: 14,
+                            fontWeight: 600
                           }}>
                             {familyMembers.spouse.firstName.charAt(0)}
                           </div>
                         )}
-                        <div style={{ textAlign: 'center', width: '100%' }}>
-                          <div style={{ fontSize: 13, fontWeight: 600, color: colors.primary, marginBottom: 2, wordBreak: 'break-word' }}>
-                            {familyMembers.spouse.firstName}
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontSize: 14, fontWeight: 600, color: colors.primary }}>
+                            {familyMembers.spouse.firstName} {familyMembers.spouse.lastName}
                           </div>
-                          {familyMembers.spouse.house && (
-                            <div style={{ fontSize: 10, color: '#999' }}>🏠 {familyMembers.spouse.house}</div>
-                          )}
-                          <div style={{ fontSize: 10, color: '#666', marginTop: 4 }}>Spouse</div>
+                          <div style={{ fontSize: 11, color: colors.gray.medium, marginTop: 2 }}>
+                            Spouse {familyMembers.spouse.house && `• 🏠 ${familyMembers.spouse.house}`}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  </div>
-                )}
+                    )}
 
-                {/* Children Section */}
-                {familyMembers.children.length > 0 && (
-                  <div style={{ marginBottom: 24 }}>
-                    <div style={{ fontSize: 12, fontWeight: 600, color: '#666', marginBottom: 8, textAlign: 'center' }}>CHILDREN</div>
-                    <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 8 }}>
-                      {familyMembers.children.map((child) => (
-                        <div 
-                          key={child._id}
-                          onClick={() => handleMemberClick(child)}
-                          style={{ 
-                            minWidth: 100,
-                            padding: 10, 
-                            background: colors.gray.light, 
-                            borderRadius: 10, 
-                            cursor: 'pointer', 
-                            display: 'flex', 
-                            flexDirection: 'column',
-                            alignItems: 'center', 
-                            gap: 6,
-                            transition: 'all 0.2s',
-                            border: '2px solid transparent'
-                          }}
-                          onMouseOver={(e) => {
-                            e.currentTarget.style.background = colors.gray.border;
-                            e.currentTarget.style.transform = 'translateY(-2px)';
-                          }}
-                          onMouseOut={(e) => {
-                            e.currentTarget.style.background = colors.gray.light;
-                            e.currentTarget.style.transform = 'translateY(0)';
-                          }}
-                        >
-                          {child.profilePicture ? (
-                            <img 
-                              src={child.profilePicture} 
-                              alt={child.firstName}
-                              style={{ width: 50, height: 50, borderRadius: '50%', objectFit: 'cover' }}
-                            />
-                          ) : (
-                            <div style={{ 
-                              width: 50, 
-                              height: 50, 
-                              borderRadius: '50%', 
-                              background: colors.primary, 
-                              color: colors.white, 
+                    {/* Children Section */}
+                    {familyMembers.children.length > 0 && (
+                      <>
+                        <div style={{ fontSize: 12, fontWeight: 600, color: colors.gray.medium, marginTop: 12, marginBottom: 4 }}>
+                          CHILDREN
+                        </div>
+                        {familyMembers.children.map((child) => (
+                          <div 
+                            key={child._id}
+                            onClick={() => handleMemberClick(child)}
+                            style={{ 
+                              padding: 8, 
+                              background: colors.white, 
+                              borderRadius: 8, 
+                              cursor: 'pointer', 
                               display: 'flex', 
                               alignItems: 'center', 
-                              justifyContent: 'center',
-                              fontSize: 18,
-                              fontWeight: 600
-                            }}>
-                              {child.firstName.charAt(0)}
-                            </div>
-                          )}
-                          <div style={{ textAlign: 'center', width: '100%' }}>
-                            <div style={{ fontSize: 11, fontWeight: 600, color: colors.primary, wordBreak: 'break-word' }}>
-                              {child.firstName}
+                              gap: 12,
+                              transition: 'background 0.2s'
+                            }}
+                            onMouseOver={(e) => e.currentTarget.style.background = colors.gray.light}
+                            onMouseOut={(e) => e.currentTarget.style.background = colors.white}
+                          >
+                            {child.profilePicture ? (
+                              <img 
+                                src={child.profilePicture} 
+                                alt={child.firstName}
+                                style={{ width: 32, height: 32, borderRadius: '50%', objectFit: 'cover' }}
+                              />
+                            ) : (
+                              <div style={{ 
+                                width: 32, 
+                                height: 32, 
+                                borderRadius: '50%', 
+                                background: colors.primary, 
+                                color: colors.white, 
+                                display: 'flex', 
+                                alignItems: 'center', 
+                                justifyContent: 'center',
+                                fontSize: 14,
+                                fontWeight: 600
+                              }}>
+                                {child.firstName.charAt(0)}
+                              </div>
+                            )}
+                            <div style={{ flex: 1 }}>
+                              <div style={{ fontSize: 14, fontWeight: 600, color: colors.primary }}>
+                                {child.firstName} {child.lastName}
+                              </div>
+                              {child.house && (
+                                <div style={{ fontSize: 11, color: colors.gray.medium, marginTop: 2 }}>
+                                  🏠 {child.house}
+                                </div>
+                              )}
                             </div>
                           </div>
+                        ))}
+                      </>
+                    )}
+
+                    {/* Siblings Section */}
+                    {familyMembers.siblings.length > 0 && (
+                      <>
+                        <div style={{ fontSize: 12, fontWeight: 600, color: colors.gray.medium, marginTop: 12, marginBottom: 4 }}>
+                          SIBLINGS
                         </div>
-                      ))}
-                    </div>
+                        {familyMembers.siblings.map((sibling) => (
+                          <div 
+                            key={sibling._id}
+                            onClick={() => handleMemberClick(sibling)}
+                            style={{ 
+                              padding: 8, 
+                              background: colors.white, 
+                              borderRadius: 8, 
+                              cursor: 'pointer', 
+                              display: 'flex', 
+                              alignItems: 'center', 
+                              gap: 12,
+                              transition: 'background 0.2s'
+                            }}
+                            onMouseOver={(e) => e.currentTarget.style.background = colors.gray.light}
+                            onMouseOut={(e) => e.currentTarget.style.background = colors.white}
+                          >
+                            {sibling.profilePicture ? (
+                              <img 
+                                src={sibling.profilePicture} 
+                                alt={sibling.firstName}
+                                style={{ width: 32, height: 32, borderRadius: '50%', objectFit: 'cover' }}
+                              />
+                            ) : (
+                              <div style={{ 
+                                width: 32, 
+                                height: 32, 
+                                borderRadius: '50%', 
+                                background: colors.primary, 
+                                color: colors.white, 
+                                display: 'flex', 
+                                alignItems: 'center', 
+                                justifyContent: 'center',
+                                fontSize: 14,
+                                fontWeight: 600
+                              }}>
+                                {sibling.firstName.charAt(0)}
+                              </div>
+                            )}
+                            <div style={{ flex: 1 }}>
+                              <div style={{ fontSize: 14, fontWeight: 600, color: colors.primary }}>
+                                {sibling.firstName} {sibling.lastName}
+                              </div>
+                              {sibling.house && (
+                                <div style={{ fontSize: 11, color: colors.gray.medium, marginTop: 2 }}>
+                                  🏠 {sibling.house}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </>
+                    )}
                   </div>
                 )}
 
                 {/* Swipe Indicator */}
-                <div style={{ textAlign: 'center', padding: '12px 0', color: '#999', fontSize: 12, borderTop: '1px solid #E0E0E0', marginTop: 8 }}>
+                <div style={{ textAlign: 'center', padding: '12px 0', color: '#999', fontSize: 12, borderTop: '1px solid #E0E0E0', marginTop: 16 }}>
                   ← Swipe right for profile →
                 </div>
               </div>
