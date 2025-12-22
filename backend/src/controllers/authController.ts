@@ -224,7 +224,7 @@ export const changePassword = async (req: AuthRequest, res: Response): Promise<v
     }
 
     // Verify current password
-    const bcrypt = require('bcrypt');
+    const bcrypt = require('bcryptjs');
     const isMatch = await bcrypt.compare(currentPassword, user.password);
     if (!isMatch) {
       res.status(401).json({ message: 'Current password is incorrect' });

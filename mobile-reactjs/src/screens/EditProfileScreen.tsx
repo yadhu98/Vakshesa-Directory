@@ -456,6 +456,25 @@ const EditProfileScreen: React.FC = () => {
             >
               {saving ? 'Saving...' : 'Save Changes'}
             </button>
+            
+            <button
+              style={{
+                width: '100%',
+                padding: '16px',
+                background: '#fff',
+                color: '#000',
+                border: '1px solid #E0E0E0',
+                borderRadius: 12,
+                fontWeight: 600,
+                fontSize: 16,
+                cursor: 'pointer',
+                marginTop: 12,
+              }}
+              type="button"
+              onClick={() => navigate('/change-password')}
+            >
+              Change Password
+            </button>
           </form>
         )}
       </div>
