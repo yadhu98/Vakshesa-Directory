@@ -60,6 +60,9 @@ const DirectoryScreen: React.FC = () => {
   const [modalStep, setModalStep] = useState<number>(0);
   const [touchStart, setTouchStart] = useState<number>(0);
   const [touchEnd, setTouchEnd] = useState<number>(0);
+  const [mouseStart, setMouseStart] = useState<number>(0);
+  const [mouseEnd, setMouseEnd] = useState<number>(0);
+  const [isDragging, setIsDragging] = useState<boolean>(false);
   
   // Family member details
   const [familyMembers, setFamilyMembers] = useState<{
@@ -157,6 +160,45 @@ const DirectoryScreen: React.FC = () => {
     
     setTouchStart(0);
     setTouchEnd(0);
+  };
+
+  // Mouse drag handlers (for laptop/desktop)
+  const handleMouseDown = (e: React.MouseEvent) => {
+    setIsDragging(true);
+    setMouseStart(e.clientX);
+  };
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (isDragging) {
+      setMouseEnd(e.clientX);
+    }
+  };
+
+  const handleMouseUp = () => {
+    if (!isDragging || !mouseStart || !mouseEnd) {
+      setIsDragging(false);
+      return;
+    }
+    
+    const distance = mouseStart - mouseEnd;
+    const isLeftSwipe = distance > 50;
+    const isRightSwipe = distance < -50;
+    
+    if (isLeftSwipe && modalStep === 0) {
+      setModalStep(1);
+    } else if (isRightSwipe && modalStep === 1) {
+      setModalStep(0);
+    }
+    
+    setIsDragging(false);
+    setMouseStart(0);
+    setMouseEnd(0);
+  };
+
+  const handleMouseLeave = () => {
+    setIsDragging(false);
+    setMouseStart(0);
+    setMouseEnd(0);
   };
 
   const handleMemberClick = async (member: Member) => {
@@ -478,7 +520,11 @@ const DirectoryScreen: React.FC = () => {
             onTouchStart={handleTouchStart}
             onTouchMove={handleTouchMove}
             onTouchEnd={handleTouchEnd}
-            style={{ background: colors.white, borderRadius: 16, minWidth: 300, maxWidth: 340, maxHeight: 'calc(100vh - 40px)', overflowY: 'auto', boxShadow: '0 2px 16px rgba(0,0,0,0.12)', padding: 24, position: 'relative', margin: 'auto' }}
+            onMouseDown={handleMouseDown}
+            onMouseMove={handleMouseMove}
+            onMouseUp={handleMouseUp}
+            onMouseLeave={handleMouseLeave}
+            style={{ background: colors.white, borderRadius: 16, minWidth: 300, maxWidth: 340, maxHeight: 'calc(100vh - 40px)', overflowY: 'auto', boxShadow: '0 2px 16px rgba(0,0,0,0.12)', padding: 24, position: 'relative', margin: 'auto', cursor: isDragging ? 'grabbing' : 'grab', userSelect: 'none' }}
           >
             {/* Close X button in top right */}
             <button 
@@ -506,9 +552,45 @@ const DirectoryScreen: React.FC = () => {
             </button>
 
             {/* Step Indicators */}
-            <div style={{ display: 'flex', gap: 6, justifyContent: 'center', marginBottom: 16 }}>
+            <div style={{ display: 'flex', gap: 6, justifyContent: 'center', alignItems: 'center', marginBottom: 16 }}>
+              {modalStep === 1 && (
+                <button
+                  onClick={() => setModalStep(0)}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    cursor: 'pointer',
+                    padding: 4,
+                    display: 'flex',
+                    alignItems: 'center'
+                  }}
+                  title="Go to profile"
+                >
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#666" strokeWidth="2">
+                    <polyline points="15 18 9 12 15 6"></polyline>
+                  </svg>
+                </button>
+              )}
               <div style={{ width: 24, height: 3, borderRadius: 2, background: modalStep === 0 ? '#000' : '#DDD', transition: 'background 0.3s' }}></div>
               <div style={{ width: 24, height: 3, borderRadius: 2, background: modalStep === 1 ? '#000' : '#DDD', transition: 'background 0.3s' }}></div>
+              {modalStep === 0 && (
+                <button
+                  onClick={() => setModalStep(1)}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    cursor: 'pointer',
+                    padding: 4,
+                    display: 'flex',
+                    alignItems: 'center'
+                  }}
+                  title="Go to family tree"
+                >
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#666" strokeWidth="2">
+                    <polyline points="9 18 15 12 9 6"></polyline>
+                  </svg>
+                </button>
+              )}
             </div>
 
             {/* Step 1: Profile Details */}
