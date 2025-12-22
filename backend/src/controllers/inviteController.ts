@@ -35,7 +35,7 @@ export const createInviteToken = async (req: AuthRequest, res: Response): Promis
       message: 'Invite token created successfully',
       token: inviteToken.token,
       expiresAt: inviteToken.expiresAt,
-      inviteLink: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/register?invite=${inviteToken.token}`,
+      inviteLink: `https://vakshesa-mobilereactjs.onrender.com/register?invite=${inviteToken.token}`,
     });
   } catch (error: any) {
     res.status(500).json({ message: error.message });
