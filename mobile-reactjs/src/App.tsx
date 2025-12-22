@@ -1,27 +1,75 @@
 
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route, useNavigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 
 import LoginScreen from './screens/LoginScreen';
 import DirectoryScreen from './screens/DirectoryScreen';
 import EditProfileScreen from './screens/EditProfileScreen';
 import RegisterScreen from './screens/RegisterScreen';
+import ChangePasswordScreen from './screens/ChangePasswordScreen';
+import EnhancedProfileScreen from './screens/EnhancedProfileScreen';
 import FooterNav from './components/FooterNav';
-import { useLocation } from 'react-router-dom';
 
+// Protected Route Component
+const ProtectedRoute: React.FC<{ children: React.ReactElement }> = ({ children }) => {
+  const token = localStorage.getItem('authToken');
+  const userData = localStorage.getItem('userData');
+  
+  if (!token || !userData) {
+    return <Navigate to="/" replace />;
+  }
+  
+  return children;
+};
 
+// Routes Component
 const AppRoutes: React.FC = () => {
   const location = useLocation();
-  const navigate = useNavigate();
   const showFooter = !['/', '/register'].includes(location.pathname);
   
   return (
     <>
       <Routes>
-        <Route path="/" element={<LoginScreen onLoginSuccess={() => navigate('/directory')} />} />
-        <Route path="/register" element={<RegisterScreen onRegisterSuccess={() => navigate('/directory')} />} />
-        <Route path="/directory" element={<DirectoryScreen />} />
-        <Route path="/edit-profile" element={<EditProfileScreen />} />
+        {/* Public Routes */}
+        <Route path="/" element={<LoginScreen />} />
+        <Route path="/register" element={<RegisterScreen />} />
+        
+        {/* Protected Routes */}
+        <Route 
+          path="/directory" 
+          element={
+            <ProtectedRoute>
+              <DirectoryScreen />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/edit-profile" 
+          element={
+            <ProtectedRoute>
+              <EditProfileScreen />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/change-password" 
+          element={
+            <ProtectedRoute>
+              <ChangePasswordScreen />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/profile/:userId" 
+          element={
+            <ProtectedRoute>
+              <EnhancedProfileScreen />
+            </ProtectedRoute>
+          } 
+        />
+        
+        {/* 404 Fallback - redirect to home */}
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
       {showFooter && <FooterNav />}
     </>

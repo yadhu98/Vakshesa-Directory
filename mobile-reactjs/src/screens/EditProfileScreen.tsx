@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import AppHeader from '../components/AppHeader';
 import { userService } from '../services/api';
 import ImageCropper from '../components/ImageCropper';
@@ -21,6 +22,7 @@ interface EditForm {
 }
 
 const EditProfileScreen: React.FC = () => {
+  const navigate = useNavigate();
   const [loading, setLoading] = useState<boolean>(true);
   const [saving, setSaving] = useState<boolean>(false);
   const [imageSrc, setImageSrc] = useState<string | null>(null);
@@ -112,9 +114,9 @@ const EditProfileScreen: React.FC = () => {
       
       alert('Profile updated successfully!');
       
-      // Force reload the page to see changes
+      // Navigate to directory to show updated profile
       setTimeout(() => {
-        window.location.reload();
+        navigate('/directory', { replace: true });
       }, 500);
     } catch (err: any) {
       alert('Error: ' + (err?.response?.data?.message || err?.message || 'Failed to update profile'));

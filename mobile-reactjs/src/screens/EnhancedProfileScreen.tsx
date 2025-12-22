@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import { Feather } from 'feather-icons-react';
-import { userService, api } from '../services/api';
+import { api } from '../services/api';
+import AppHeader from '../components/AppHeader';
 
 const styles = {
   container: { background: '#fff', minHeight: '100vh' },
@@ -35,7 +37,9 @@ const InfoRow = ({ label, value, multiline }: { label: string; value: any; multi
   </div>
 );
 
-const EnhancedProfileScreen = ({ userId, onEditProfile }: { userId?: string; onEditProfile?: () => void }) => {
+const EnhancedProfileScreen = () => {
+  const { userId } = useParams<{ userId: string }>();
+  const navigate = useNavigate();
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
@@ -79,9 +83,20 @@ const EnhancedProfileScreen = ({ userId, onEditProfile }: { userId?: string; onE
 
   if (loading) return <div style={styles.loading}><span>Loading...</span></div>;
   if (!profile) return <div style={styles.loading}><span>Profile not found</span></div>;
+  
+  const isOwnProfile = () => {
+    const userDataStr = localStorage.getItem('userData');
+    const currentUser = userDataStr ? JSON.parse(userDataStr) : null;
+    return currentUser?._id === profile._id;
+  };
 
   return (
     <div style={styles.container}>
+      <AppHeader 
+        title={isOwnProfile() ? "My Profile" : "Profile"} 
+        showBackButton={true}
+        onBack={() => navigate(-1)}
+      />
       <div style={styles.headerCard as React.CSSProperties}>
         <div style={styles.avatar}>{profile.firstName?.[0]}{profile.lastName?.[0]}</div>
         <div style={styles.name}>{profile.firstName} {profile.lastName}</div>
@@ -130,8 +145,13 @@ const EnhancedProfileScreen = ({ userId, onEditProfile }: { userId?: string; onE
           <InfoRow label="Member Since" value={new Date(profile.createdAt).toLocaleDateString()} />
         )}
       </div>
-      {onEditProfile && (
-        <div style={styles.editButton as React.CSSProperties} onClick={onEditProfile}>Edit Profile</div>
+      {isOwnProfile() && (
+        <div 
+          style={styles.editButton as React.CSSProperties} 
+          onClick={() => navigate('/edit-profile')}
+        >
+          Edit Profile
+        </div>
       )}
     </div>
   );

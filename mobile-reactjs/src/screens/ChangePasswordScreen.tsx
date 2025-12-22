@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { api } from '../services/api';
+import AppHeader from '../components/AppHeader';
 
 const styles = {
   container: { background: '#fff', minHeight: '100vh', maxWidth: 480, margin: '0 auto', padding: 0 },
@@ -14,6 +16,7 @@ const styles = {
 };
 
 const ChangePasswordScreen = () => {
+  const navigate = useNavigate();
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -56,20 +59,27 @@ const ChangePasswordScreen = () => {
   };
 
   return (
-    <div style={styles.container}>
-      <form style={styles.section} onSubmit={handleChangePassword}>
-        <div style={styles.sectionTitle}>Change Password</div>
-        {error && <div style={styles.error}>{error}</div>}
-        {message && <div style={styles.success}>{message}</div>}
-        <div style={styles.label}>Current Password *</div>
-        <input style={styles.input} type="password" value={currentPassword} onChange={e => setCurrentPassword(e.target.value)} placeholder="Enter current password" />
-        <div style={styles.label}>New Password *</div>
-        <input style={styles.input} type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)} placeholder="Enter new password (min 8 characters)" />
-        <div style={styles.label}>Confirm New Password *</div>
-        <input style={styles.input} type="password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} placeholder="Re-enter new password" />
-        <button style={{ ...styles.button, ...(loading ? styles.buttonDisabled : {}) } as React.CSSProperties} type="submit" disabled={loading}>{loading ? 'Changing...' : 'Change Password'}</button>
-      </form>
-    </div>
+    <>
+      <AppHeader 
+        title="Change Password" 
+        showBackButton={true}
+        onBack={() => navigate(-1)}
+      />
+      <div style={styles.container}>
+        <form style={styles.section} onSubmit={handleChangePassword}>
+          <div style={styles.sectionTitle}>Change Password</div>
+          {error && <div style={styles.error}>{error}</div>}
+          {message && <div style={styles.success}>{message}</div>}
+          <div style={styles.label}>Current Password *</div>
+          <input style={styles.input} type="password" value={currentPassword} onChange={e => setCurrentPassword(e.target.value)} placeholder="Enter current password" />
+          <div style={styles.label}>New Password *</div>
+          <input style={styles.input} type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)} placeholder="Enter new password (min 8 characters)" />
+          <div style={styles.label}>Confirm New Password *</div>
+          <input style={styles.input} type="password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} placeholder="Re-enter new password" />
+          <button style={{ ...styles.button, ...(loading ? styles.buttonDisabled : {}) } as React.CSSProperties} type="submit" disabled={loading}>{loading ? 'Changing...' : 'Change Password'}</button>
+        </form>
+      </div>
+    </>
   );
 };
 

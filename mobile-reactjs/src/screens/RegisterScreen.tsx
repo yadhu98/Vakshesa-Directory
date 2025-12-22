@@ -163,7 +163,7 @@ const styles: { [key: string]: React.CSSProperties } = {
   },
 };
 
-const RegisterScreen: React.FC<{ onRegisterSuccess: () => void }> = ({ onRegisterSuccess }) => {
+const RegisterScreen: React.FC = () => {
   const [form, setForm] = useState(initialForm);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -259,7 +259,7 @@ const RegisterScreen: React.FC<{ onRegisterSuccess: () => void }> = ({ onRegiste
         inviteToken: inviteToken, // Include the invite token
       };
       await authService.register(registrationData);
-      onRegisterSuccess();
+      navigate('/directory', { replace: true });
     } catch (err: any) {
       setError(err?.response?.data?.message || 'Registration failed');
     } finally {

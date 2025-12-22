@@ -1,10 +1,7 @@
 
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { authService } from '../services/api';
-
-interface LoginScreenProps {
-  onLoginSuccess: () => void;
-}
 
 // Shared theme colors
 const colors = {
@@ -18,7 +15,8 @@ const colors = {
   },
 };
 
-const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
+const LoginScreen: React.FC = () => {
+  const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -36,7 +34,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
     setLoading(true);
     try {
       await authService.login(email, password);
-      onLoginSuccess();
+      navigate('/directory', { replace: true });
     } catch (err: any) {
       setError(err?.response?.data?.message || 'Login failed');
     } finally {
@@ -221,6 +219,20 @@ const styles: { [key: string]: React.CSSProperties } = {
   buttonDisabled: {
     opacity: 0.5,
     cursor: 'not-allowed',
+  },
+  registerLinkContainer: {
+    marginTop: '24px',
+    textAlign: 'center',
+  },
+  registerText: {
+    fontSize: '14px',
+    color: colors.gray.dark,
+  },
+  registerLink: {
+    fontSize: '14px',
+    color: colors.primary,
+    fontWeight: '600',
+    textDecoration: 'none',
   },
 };
 
