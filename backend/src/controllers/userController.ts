@@ -94,7 +94,11 @@ export const toggleUserStatus = async (req: AuthRequest, res: Response): Promise
 export const updateUser = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const { userId } = req.params;
-    const { firstName, lastName, email, phone, role, isActive, gender, house, occupation, address, linkedin, instagram, facebook, countryCode, profilePicture } = req.body;
+    const { 
+      firstName, lastName, email, phone, role, isActive, gender, house, occupation, address, 
+      linkedin, instagram, facebook, countryCode, profilePicture,
+      fatherId, motherId, spouseId, children 
+    } = req.body;
 
     const { db } = await import('../config/storage');
     const user = await db.findById('users', userId);
@@ -127,6 +131,12 @@ export const updateUser = async (req: AuthRequest, res: Response): Promise<void>
     if (instagram !== undefined) updates.instagram = instagram;
     if (facebook !== undefined) updates.facebook = facebook;
     if (profilePicture !== undefined) updates.profilePicture = profilePicture;
+    
+    // Family relationship fields
+    if (fatherId !== undefined) updates.fatherId = fatherId || null;
+    if (motherId !== undefined) updates.motherId = motherId || null;
+    if (spouseId !== undefined) updates.spouseId = spouseId || null;
+    if (children !== undefined) updates.children = children || [];
     
     // Only admins can update role and isActive
     if (req.user?.role === 'admin' || req.user?.isSuperUser) {

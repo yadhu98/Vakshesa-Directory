@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import AppHeader from '../components/AppHeader';
 import { userService } from '../services/api';
 import ImageCropper from '../components/ImageCropper';
-import { Camera } from 'feather-icons-react';
+import UserSearchModal from '../components/UserSearchModal';
+import { Camera, X, Plus } from 'feather-icons-react';
 
 interface EditForm {
   firstName: string;
@@ -17,6 +18,17 @@ interface EditForm {
   linkedin: string;
   instagram: string;
   facebook: string;
+  profilePicture?: string;
+  fatherId?: string;
+  motherId?: string;
+  spouseId?: string;
+  children?: string[];
+}
+
+interface FamilyMember {
+  _id: string;
+  firstName: string;
+  lastName: string;
   profilePicture?: string;
 }
 
@@ -38,6 +50,26 @@ const EditProfileScreen: React.FC = () => {
     linkedin: '',
     instagram: '',
     facebook: '',
+  });
+
+  // Family relationship states
+  const [familyMembers, setFamilyMembers] = useState<{
+    father?: FamilyMember;
+    mother?: FamilyMember;
+    spouse?: FamilyMember;
+    children: FamilyMember[];
+  }>({
+    children: []
+  });
+
+  const [searchModalConfig, setSearchModalConfig] = useState<{
+    isOpen: boolean;
+    type: 'father' | 'mother' | 'spouse' | 'child';
+    title: string;
+  }>({
+    isOpen: false,
+    type: 'father',
+    title: ''
   });
 
   useEffect(() => {
@@ -78,7 +110,82 @@ const EditProfileScreen: React.FC = () => {
           instagram: user.instagram || '',
           facebook: user.facebook || '',
           profilePicture: user.profilePicture || '',
+          fatherId: user.fatherId || '',
+          motherId: user.motherId || '',
+          spouseId: user.spouseId || '',
+          children: user.children || [],
         });
+
+        // Load family member details if IDs exist
+        const loadedFamilyMembers: any = { children: [] };
+        
+        if (user.fatherId) {
+          try {
+            const fatherRes = await userService.getUserProfile(user.fatherId);
+            if (fatherRes?.data) {
+              loadedFamilyMembers.father = {
+                _id: fatherRes.data._id,
+                firstName: fatherRes.data.firstName,
+                lastName: fatherRes.data.lastName,
+                profilePicture: fatherRes.data.profilePicture
+              };
+            }
+          } catch (err) {
+            console.error('Error loading father:', err);
+          }
+        }
+
+        if (user.motherId) {
+          try {
+            const motherRes = await userService.getUserProfile(user.motherId);
+            if (motherRes?.data) {
+              loadedFamilyMembers.mother = {
+                _id: motherRes.data._id,
+                firstName: motherRes.data.firstName,
+                lastName: motherRes.data.lastName,
+                profilePicture: motherRes.data.profilePicture
+              };
+            }
+          } catch (err) {
+            console.error('Error loading mother:', err);
+          }
+        }
+
+        if (user.spouseId) {
+          try {
+            const spouseRes = await userService.getUserProfile(user.spouseId);
+            if (spouseRes?.data) {
+              loadedFamilyMembers.spouse = {
+                _id: spouseRes.data._id,
+                firstName: spouseRes.data.firstName,
+                lastName: spouseRes.data.lastName,
+                profilePicture: spouseRes.data.profilePicture
+              };
+            }
+          } catch (err) {
+            console.error('Error loading spouse:', err);
+          }
+        }
+
+        if (user.children && user.children.length > 0) {
+          for (const childId of user.children) {
+            try {
+              const childRes = await userService.getUserProfile(childId);
+              if (childRes?.data) {
+                loadedFamilyMembers.children.push({
+                  _id: childRes.data._id,
+                  firstName: childRes.data.firstName,
+                  lastName: childRes.data.lastName,
+                  profilePicture: childRes.data.profilePicture
+                });
+              }
+            } catch (err) {
+              console.error('Error loading child:', err);
+            }
+          }
+        }
+
+        setFamilyMembers(loadedFamilyMembers);
       } catch (err) {
         console.error('Error loading profile:', err);
       } finally {
@@ -101,7 +208,16 @@ const EditProfileScreen: React.FC = () => {
       
       if (!userId) throw new Error('User not found');
       
-      const response = await userService.updateUserProfile(userId, form);
+      // Include family relationship IDs
+      const updateData = {
+        ...form,
+        fatherId: familyMembers.father?._id || '',
+        motherId: familyMembers.mother?._id || '',
+        spouseId: familyMembers.spouse?._id || '',
+        children: familyMembers.children.map(child => child._id),
+      };
+      
+      const response = await userService.updateUserProfile(userId, updateData);
       
       // Update localStorage with new data - response.data is the updated user object
       if (response?.data) {
@@ -120,6 +236,82 @@ const EditProfileScreen: React.FC = () => {
       alert('Error: ' + (err?.response?.data?.message || err?.message || 'Failed to update profile'));
     } finally {
       setSaving(false);
+    }
+  };
+
+  // Family relationship management functions
+  const openSearchModal = (type: 'father' | 'mother' | 'spouse' | 'child') => {
+    const titles = {
+      father: 'Select Father',
+      mother: 'Select Mother',
+      spouse: 'Select Spouse',
+      child: 'Add Child'
+    };
+    setSearchModalConfig({
+      isOpen: true,
+      type,
+      title: titles[type]
+    });
+  };
+
+  const handleFamilySelect = (selectedUser: any) => {
+    const member: FamilyMember = {
+      _id: selectedUser._id,
+      firstName: selectedUser.firstName,
+      lastName: selectedUser.lastName,
+      profilePicture: selectedUser.profilePicture
+    };
+
+    setFamilyMembers(prev => {
+      const updated = { ...prev };
+      if (searchModalConfig.type === 'child') {
+        updated.children = [...prev.children, member];
+      } else {
+        updated[searchModalConfig.type] = member;
+      }
+      return updated;
+    });
+
+    // Update form state with IDs
+    setForm(prev => {
+      const updated = { ...prev };
+      if (searchModalConfig.type === 'father') {
+        updated.fatherId = member._id;
+      } else if (searchModalConfig.type === 'mother') {
+        updated.motherId = member._id;
+      } else if (searchModalConfig.type === 'spouse') {
+        updated.spouseId = member._id;
+      } else if (searchModalConfig.type === 'child') {
+        updated.children = [...(prev.children || []), member._id];
+      }
+      return updated;
+    });
+
+    setSearchModalConfig({ isOpen: false, type: 'father', title: '' });
+  };
+
+  const removeFamilyMember = (type: 'father' | 'mother' | 'spouse', childId?: string) => {
+    if (type === 'father' || type === 'mother' || type === 'spouse') {
+      setFamilyMembers(prev => {
+        const updated = { ...prev };
+        delete updated[type];
+        return updated;
+      });
+      
+      setForm(prev => ({
+        ...prev,
+        [`${type}Id`]: ''
+      }));
+    } else if (childId) {
+      setFamilyMembers(prev => ({
+        ...prev,
+        children: prev.children.filter(c => c._id !== childId)
+      }));
+      
+      setForm(prev => ({
+        ...prev,
+        children: (prev.children || []).filter(id => id !== childId)
+      }));
     }
   };
 
@@ -431,6 +623,329 @@ const EditProfileScreen: React.FC = () => {
               onChange={handleChange}
             />
 
+            {/* Family Relationships Section */}
+            <div style={{ ...sectionTitleStyle, marginTop: 32 }}>Family</div>
+            
+            {/* Father */}
+            <div style={{ marginBottom: 20 }}>
+              <div style={{ fontSize: 14, fontWeight: 500, marginBottom: 8, color: '#666' }}>
+                Father
+              </div>
+              {familyMembers.father ? (
+                <div style={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  padding: 12, 
+                  background: '#F5F5F5', 
+                  borderRadius: 8,
+                  justifyContent: 'space-between'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                    {familyMembers.father.profilePicture ? (
+                      <img 
+                        src={familyMembers.father.profilePicture} 
+                        alt="Father"
+                        style={{ width: 40, height: 40, borderRadius: '50%', objectFit: 'cover' }}
+                      />
+                    ) : (
+                      <div style={{ 
+                        width: 40, 
+                        height: 40, 
+                        borderRadius: '50%', 
+                        background: '#000', 
+                        color: '#fff',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: 16,
+                        fontWeight: 600
+                      }}>
+                        {familyMembers.father.firstName.charAt(0)}
+                      </div>
+                    )}
+                    <span style={{ fontSize: 16, fontWeight: 500 }}>
+                      {familyMembers.father.firstName} {familyMembers.father.lastName}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => removeFamilyMember('father')}
+                    style={{ 
+                      background: 'transparent', 
+                      border: 'none', 
+                      cursor: 'pointer',
+                      padding: 4
+                    }}
+                  >
+                    <X size={20} color="#666" />
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => openSearchModal('father')}
+                  style={{
+                    width: '100%',
+                    padding: 12,
+                    background: '#F5F5F5',
+                    border: '1px dashed #CCC',
+                    borderRadius: 8,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 8,
+                    cursor: 'pointer',
+                    fontSize: 14,
+                    color: '#666'
+                  }}
+                >
+                  <Plus size={18} />
+                  Add Father
+                </button>
+              )}
+            </div>
+
+            {/* Mother */}
+            <div style={{ marginBottom: 20 }}>
+              <div style={{ fontSize: 14, fontWeight: 500, marginBottom: 8, color: '#666' }}>
+                Mother
+              </div>
+              {familyMembers.mother ? (
+                <div style={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  padding: 12, 
+                  background: '#F5F5F5', 
+                  borderRadius: 8,
+                  justifyContent: 'space-between'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                    {familyMembers.mother.profilePicture ? (
+                      <img 
+                        src={familyMembers.mother.profilePicture} 
+                        alt="Mother"
+                        style={{ width: 40, height: 40, borderRadius: '50%', objectFit: 'cover' }}
+                      />
+                    ) : (
+                      <div style={{ 
+                        width: 40, 
+                        height: 40, 
+                        borderRadius: '50%', 
+                        background: '#000', 
+                        color: '#fff',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: 16,
+                        fontWeight: 600
+                      }}>
+                        {familyMembers.mother.firstName.charAt(0)}
+                      </div>
+                    )}
+                    <span style={{ fontSize: 16, fontWeight: 500 }}>
+                      {familyMembers.mother.firstName} {familyMembers.mother.lastName}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => removeFamilyMember('mother')}
+                    style={{ 
+                      background: 'transparent', 
+                      border: 'none', 
+                      cursor: 'pointer',
+                      padding: 4
+                    }}
+                  >
+                    <X size={20} color="#666" />
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => openSearchModal('mother')}
+                  style={{
+                    width: '100%',
+                    padding: 12,
+                    background: '#F5F5F5',
+                    border: '1px dashed #CCC',
+                    borderRadius: 8,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 8,
+                    cursor: 'pointer',
+                    fontSize: 14,
+                    color: '#666'
+                  }}
+                >
+                  <Plus size={18} />
+                  Add Mother
+                </button>
+              )}
+            </div>
+
+            {/* Spouse */}
+            <div style={{ marginBottom: 20 }}>
+              <div style={{ fontSize: 14, fontWeight: 500, marginBottom: 8, color: '#666' }}>
+                Spouse
+              </div>
+              {familyMembers.spouse ? (
+                <div style={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  padding: 12, 
+                  background: '#F5F5F5', 
+                  borderRadius: 8,
+                  justifyContent: 'space-between'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                    {familyMembers.spouse.profilePicture ? (
+                      <img 
+                        src={familyMembers.spouse.profilePicture} 
+                        alt="Spouse"
+                        style={{ width: 40, height: 40, borderRadius: '50%', objectFit: 'cover' }}
+                      />
+                    ) : (
+                      <div style={{ 
+                        width: 40, 
+                        height: 40, 
+                        borderRadius: '50%', 
+                        background: '#000', 
+                        color: '#fff',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: 16,
+                        fontWeight: 600
+                      }}>
+                        {familyMembers.spouse.firstName.charAt(0)}
+                      </div>
+                    )}
+                    <span style={{ fontSize: 16, fontWeight: 500 }}>
+                      {familyMembers.spouse.firstName} {familyMembers.spouse.lastName}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => removeFamilyMember('spouse')}
+                    style={{ 
+                      background: 'transparent', 
+                      border: 'none', 
+                      cursor: 'pointer',
+                      padding: 4
+                    }}
+                  >
+                    <X size={20} color="#666" />
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => openSearchModal('spouse')}
+                  style={{
+                    width: '100%',
+                    padding: 12,
+                    background: '#F5F5F5',
+                    border: '1px dashed #CCC',
+                    borderRadius: 8,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 8,
+                    cursor: 'pointer',
+                    fontSize: 14,
+                    color: '#666'
+                  }}
+                >
+                  <Plus size={18} />
+                  Add Spouse
+                </button>
+              )}
+            </div>
+
+            {/* Children */}
+            <div style={{ marginBottom: 20 }}>
+              <div style={{ fontSize: 14, fontWeight: 500, marginBottom: 8, color: '#666' }}>
+                Children
+              </div>
+              {familyMembers.children.map((child) => (
+                <div 
+                  key={child._id}
+                  style={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    padding: 12, 
+                    background: '#F5F5F5', 
+                    borderRadius: 8,
+                    justifyContent: 'space-between',
+                    marginBottom: 8
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                    {child.profilePicture ? (
+                      <img 
+                        src={child.profilePicture} 
+                        alt="Child"
+                        style={{ width: 40, height: 40, borderRadius: '50%', objectFit: 'cover' }}
+                      />
+                    ) : (
+                      <div style={{ 
+                        width: 40, 
+                        height: 40, 
+                        borderRadius: '50%', 
+                        background: '#000', 
+                        color: '#fff',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: 16,
+                        fontWeight: 600
+                      }}>
+                        {child.firstName.charAt(0)}
+                      </div>
+                    )}
+                    <span style={{ fontSize: 16, fontWeight: 500 }}>
+                      {child.firstName} {child.lastName}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => removeFamilyMember('spouse', child._id)}
+                    style={{ 
+                      background: 'transparent', 
+                      border: 'none', 
+                      cursor: 'pointer',
+                      padding: 4
+                    }}
+                  >
+                    <X size={20} color="#666" />
+                  </button>
+                </div>
+              ))}
+              <button
+                type="button"
+                onClick={() => openSearchModal('child')}
+                style={{
+                  width: '100%',
+                  padding: 12,
+                  background: '#F5F5F5',
+                  border: '1px dashed #CCC',
+                  borderRadius: 8,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 8,
+                  cursor: 'pointer',
+                  fontSize: 14,
+                  color: '#666',
+                  marginTop: 8
+                }}
+              >
+                <Plus size={18} />
+                Add Child
+              </button>
+            </div>
+
             <button
               style={{
                 width: '100%',
@@ -457,6 +972,21 @@ const EditProfileScreen: React.FC = () => {
           </form>
         )}
       </div>
+
+      {/* User Search Modal for Family Relationships */}
+      <UserSearchModal
+        isOpen={searchModalConfig.isOpen}
+        onClose={() => setSearchModalConfig({ isOpen: false, type: 'father', title: '' })}
+        onSelect={handleFamilySelect}
+        title={searchModalConfig.title}
+        excludeUserId={
+          (() => {
+            const userDataStr = localStorage.getItem('userData');
+            const userData = userDataStr ? JSON.parse(userDataStr) : null;
+            return userData?._id || '';
+          })()
+        }
+      />
     </div>
   );
 };

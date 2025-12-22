@@ -26,6 +26,10 @@ interface Member {
   linkedin?: string;
   instagram?: string;
   facebook?: string;
+  fatherId?: string;
+  motherId?: string;
+  spouseId?: string;
+  children?: string[];
 }
 
 const colors = {
@@ -50,6 +54,14 @@ const DirectoryScreen: React.FC = () => {
   const [inviteModalVisible, setInviteModalVisible] = useState(false);
   const [inviteLink, setInviteLink] = useState('');
   const [inviteCopied, setInviteCopied] = useState(false);
+  
+  // Family member details
+  const [familyMembers, setFamilyMembers] = useState<{
+    father?: Member;
+    mother?: Member;
+    spouse?: Member;
+    children: Member[];
+  }>({ children: [] });
 
   const houses: House[] = ['All', 'Kadannamanna', 'Mankada', 'Ayiranazhi', 'Aripra'];
 
@@ -95,9 +107,60 @@ const DirectoryScreen: React.FC = () => {
     return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
   };
 
-  const handleMemberClick = (member: Member) => {
+  const handleMemberClick = async (member: Member) => {
     setSelectedMember(member);
     setModalVisible(true);
+    
+    // Load family member details
+    const loadedFamily: any = { children: [] };
+    
+    if (member.fatherId) {
+      try {
+        const res = await userService.getUserProfile(member.fatherId);
+        if (res?.data) {
+          loadedFamily.father = res.data;
+        }
+      } catch (err) {
+        console.error('Error loading father:', err);
+      }
+    }
+    
+    if (member.motherId) {
+      try {
+        const res = await userService.getUserProfile(member.motherId);
+        if (res?.data) {
+          loadedFamily.mother = res.data;
+        }
+      } catch (err) {
+        console.error('Error loading mother:', err);
+      }
+    }
+    
+    if (member.spouseId) {
+      try {
+        const res = await userService.getUserProfile(member.spouseId);
+        if (res?.data) {
+          loadedFamily.spouse = res.data;
+        }
+      } catch (err) {
+        console.error('Error loading spouse:', err);
+      }
+    }
+    
+    if (member.children && member.children.length > 0) {
+      for (const childId of member.children) {
+        try {
+          const res = await userService.getUserProfile(childId);
+          if (res?.data) {
+            loadedFamily.children.push(res.data);
+          }
+        } catch (err) {
+          console.error('Error loading child:', err);
+        }
+      }
+    }
+    
+    setFamilyMembers(loadedFamily);
   };
 
   const generateInviteLink = async () => {
@@ -313,6 +376,142 @@ const DirectoryScreen: React.FC = () => {
                       Facebook
                     </a>
                   )}
+                </div>
+              </div>
+            )}
+            {/* Family Section */}
+            {(familyMembers.father || familyMembers.mother || familyMembers.spouse || familyMembers.children.length > 0) && (
+              <div style={{ marginBottom: 16, paddingTop: 12, borderTop: '1px solid #E0E0E0' }}>
+                <div style={{ fontSize: 13, fontWeight: 600, color: '#666', marginBottom: 8 }}>Family</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {familyMembers.father && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      {familyMembers.father.profilePicture ? (
+                        <img 
+                          src={familyMembers.father.profilePicture} 
+                          alt="Father"
+                          style={{ width: 32, height: 32, borderRadius: '50%', objectFit: 'cover' }}
+                        />
+                      ) : (
+                        <div style={{ 
+                          width: 32, 
+                          height: 32, 
+                          borderRadius: '50%', 
+                          background: '#000', 
+                          color: '#fff',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontSize: 12,
+                          fontWeight: 600
+                        }}>
+                          {familyMembers.father.firstName.charAt(0)}
+                        </div>
+                      )}
+                      <div>
+                        <div style={{ fontSize: 11, color: '#999' }}>Father</div>
+                        <div style={{ fontSize: 14, fontWeight: 500, color: '#333' }}>
+                          {familyMembers.father.firstName} {familyMembers.father.lastName}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  {familyMembers.mother && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      {familyMembers.mother.profilePicture ? (
+                        <img 
+                          src={familyMembers.mother.profilePicture} 
+                          alt="Mother"
+                          style={{ width: 32, height: 32, borderRadius: '50%', objectFit: 'cover' }}
+                        />
+                      ) : (
+                        <div style={{ 
+                          width: 32, 
+                          height: 32, 
+                          borderRadius: '50%', 
+                          background: '#000', 
+                          color: '#fff',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontSize: 12,
+                          fontWeight: 600
+                        }}>
+                          {familyMembers.mother.firstName.charAt(0)}
+                        </div>
+                      )}
+                      <div>
+                        <div style={{ fontSize: 11, color: '#999' }}>Mother</div>
+                        <div style={{ fontSize: 14, fontWeight: 500, color: '#333' }}>
+                          {familyMembers.mother.firstName} {familyMembers.mother.lastName}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  {familyMembers.spouse && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      {familyMembers.spouse.profilePicture ? (
+                        <img 
+                          src={familyMembers.spouse.profilePicture} 
+                          alt="Spouse"
+                          style={{ width: 32, height: 32, borderRadius: '50%', objectFit: 'cover' }}
+                        />
+                      ) : (
+                        <div style={{ 
+                          width: 32, 
+                          height: 32, 
+                          borderRadius: '50%', 
+                          background: '#000', 
+                          color: '#fff',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontSize: 12,
+                          fontWeight: 600
+                        }}>
+                          {familyMembers.spouse.firstName.charAt(0)}
+                        </div>
+                      )}
+                      <div>
+                        <div style={{ fontSize: 11, color: '#999' }}>Spouse</div>
+                        <div style={{ fontSize: 14, fontWeight: 500, color: '#333' }}>
+                          {familyMembers.spouse.firstName} {familyMembers.spouse.lastName}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  {familyMembers.children.map((child) => (
+                    <div key={child._id} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      {child.profilePicture ? (
+                        <img 
+                          src={child.profilePicture} 
+                          alt="Child"
+                          style={{ width: 32, height: 32, borderRadius: '50%', objectFit: 'cover' }}
+                        />
+                      ) : (
+                        <div style={{ 
+                          width: 32, 
+                          height: 32, 
+                          borderRadius: '50%', 
+                          background: '#000', 
+                          color: '#fff',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontSize: 12,
+                          fontWeight: 600
+                        }}>
+                          {child.firstName.charAt(0)}
+                        </div>
+                      )}
+                      <div>
+                        <div style={{ fontSize: 11, color: '#999' }}>Child</div>
+                        <div style={{ fontSize: 14, fontWeight: 500, color: '#333' }}>
+                          {child.firstName} {child.lastName}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
             )}
