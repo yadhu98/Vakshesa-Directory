@@ -85,6 +85,10 @@ const userSchema = new mongoose_1.Schema({
         type: [String],
         default: [],
     },
+    siblings: {
+        type: [String],
+        default: [],
+    },
     generation: {
         type: Number,
         default: 1,

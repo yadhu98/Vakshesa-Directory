@@ -24,6 +24,7 @@ export interface IUser {
   motherId?: string; // Reference to mother's user ID
   spouseId?: string; // Reference to spouse's user ID
   children?: string[]; // Array of children's user IDs
+  siblings?: string[]; // Array of siblings' user IDs
   generation?: number; // Generation level (1 for oldest ancestors, increasing for descendants)
   isAlive?: boolean; // Whether the person is alive
   
@@ -125,6 +126,10 @@ const userSchema = new Schema<IUser>(
       index: true,
     },
     children: {
+      type: [String],
+      default: [],
+    },
+    siblings: {
       type: [String],
       default: [],
     },

@@ -178,7 +178,6 @@ const DirectoryScreen: React.FC = () => {
     
     // Load reverse relationships (find users who reference this member)
     try {
-      // Find users who have this person as their father
       const childrenRes = await userService.searchUsers('', 100);
       const allUsers = childrenRes?.data?.results || [];
       
@@ -192,6 +191,37 @@ const DirectoryScreen: React.FC = () => {
           loadedFamily.children.push(child);
         }
       });
+      
+      // Infer spouse from shared children
+      // If this member is a parent and we don't have a spouse yet, check if children have another parent
+      if (!loadedFamily.spouse && loadedFamily.children.length > 0) {
+        for (const child of loadedFamily.children) {
+          // If we're the father, check if child has a mother
+          if (child.fatherId === member._id && child.motherId) {
+            try {
+              const motherRes = await userService.getUserProfile(child.motherId);
+              if (motherRes?.data) {
+                loadedFamily.spouse = motherRes.data;
+                break;
+              }
+            } catch (err) {
+              console.error('Error loading inferred spouse (mother):', err);
+            }
+          }
+          // If we're the mother, check if child has a father
+          else if (child.motherId === member._id && child.fatherId) {
+            try {
+              const fatherRes = await userService.getUserProfile(child.fatherId);
+              if (fatherRes?.data) {
+                loadedFamily.spouse = fatherRes.data;
+                break;
+              }
+            } catch (err) {
+              console.error('Error loading inferred spouse (father):', err);
+            }
+          }
+        }
+      }
       
       // Find spouse (user who has this member as spouse)
       if (!loadedFamily.spouse) {
@@ -211,6 +241,41 @@ const DirectoryScreen: React.FC = () => {
           loadedFamily.siblings.push(sibling);
         }
       });
+      
+      // Inherit parent information for siblings
+      // If we have siblings, check if any of them have parents set and inherit those
+      if (loadedFamily.siblings.length > 0) {
+        for (const sibling of loadedFamily.siblings) {
+          // If we don't have a father but sibling does, inherit it
+          if (!loadedFamily.father && sibling.fatherId) {
+            try {
+              const fatherRes = await userService.getUserProfile(sibling.fatherId);
+              if (fatherRes?.data) {
+                loadedFamily.father = fatherRes.data;
+              }
+            } catch (err) {
+              console.error('Error loading inherited father from sibling:', err);
+            }
+          }
+          
+          // If we don't have a mother but sibling does, inherit it
+          if (!loadedFamily.mother && sibling.motherId) {
+            try {
+              const motherRes = await userService.getUserProfile(sibling.motherId);
+              if (motherRes?.data) {
+                loadedFamily.mother = motherRes.data;
+              }
+            } catch (err) {
+              console.error('Error loading inherited mother from sibling:', err);
+            }
+          }
+          
+          // Break if we've found both parents
+          if (loadedFamily.father && loadedFamily.mother) {
+            break;
+          }
+        }
+      }
       
     } catch (err) {
       console.error('Error loading reverse relationships:', err);
