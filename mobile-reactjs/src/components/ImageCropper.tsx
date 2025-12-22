@@ -72,10 +72,13 @@ const ImageCropper: React.FC<ImageCropperProps> = ({ imageSrc, onCropComplete, o
       zIndex: 2000,
       display: 'flex',
       flexDirection: 'column',
+      overflow: 'hidden',
     }}>
       <div style={{
         flex: 1,
         position: 'relative',
+        minHeight: 0,
+        overflow: 'hidden',
       }}>
         <Cropper
           image={imageSrc}
@@ -91,8 +94,11 @@ const ImageCropper: React.FC<ImageCropperProps> = ({ imageSrc, onCropComplete, o
       </div>
       
       <div style={{
-        padding: '20px',
+        flexShrink: 0,
+        padding: '16px 20px 20px',
         background: '#fff',
+        maxHeight: '40vh',
+        overflowY: 'auto',
       }}>
         <div style={{ marginBottom: 16 }}>
           <label style={{ display: 'block', fontSize: 14, marginBottom: 8, color: '#666' }}>
