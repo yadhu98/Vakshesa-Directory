@@ -281,12 +281,12 @@ const EditProfileScreen: React.FC = () => {
               required
             />
             <input
-              style={{ ...inputStyle, background: '#F5F5F5', cursor: 'not-allowed' }}
+              style={inputStyle}
               type="email"
               name="email"
               placeholder="Email"
               value={form.email}
-              disabled
+              onChange={handleChange}
             />
             
             <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
