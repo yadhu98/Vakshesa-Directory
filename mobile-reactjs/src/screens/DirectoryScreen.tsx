@@ -57,8 +57,13 @@ const DirectoryScreen: React.FC = () => {
     setLoading(true);
     userService.searchUsers('', 1000)
       .then(res => {
-        setMembers(res.data.results || []);
-        setFilteredMembers(res.data.results || []);
+        const sortedResults = (res.data.results || []).sort((a: Member, b: Member) => {
+          const nameA = `${a.firstName} ${a.lastName}`.toLowerCase();
+          const nameB = `${b.firstName} ${b.lastName}`.toLowerCase();
+          return nameA.localeCompare(nameB);
+        });
+        setMembers(sortedResults);
+        setFilteredMembers(sortedResults);
       })
       .catch(() => {
         setMembers([]);
@@ -86,6 +91,13 @@ const DirectoryScreen: React.FC = () => {
           m.phone?.toLowerCase().includes(searchQuery.toLowerCase())
         );
       }
+      
+      // Sort alphabetically by name
+      filtered = filtered.sort((a: Member, b: Member) => {
+        const nameA = `${a.firstName} ${a.lastName}`.toLowerCase();
+        const nameB = `${b.firstName} ${b.lastName}`.toLowerCase();
+        return nameA.localeCompare(nameB);
+      });
       
       setFilteredMembers(filtered);
     }
