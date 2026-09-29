@@ -13,6 +13,11 @@ export const addPoints = async (req: AuthRequest, res: Response): Promise<void> 
       res.status(400).json({ message: 'Missing required fields' });
       return;
     }
+    const member = await db.findById('users', String(userId));
+    if (!member || member.familyId !== req.user?.familyId || member.isActive === false || member.membershipStatus !== 'Approved') {
+      res.status(404).json({ message: 'Approved member of your family not found' });
+      return;
+    }
 
     const point = await db.create('points', {
       userId,
@@ -24,8 +29,8 @@ export const addPoints = async (req: AuthRequest, res: Response): Promise<void> 
     });
 
     // Get updated leaderboard and broadcast
-    const leaderboard = await getLeaderboard(100);
-    wsService.notifyLeaderboardUpdate(leaderboard);
+    const leaderboard = await getLeaderboard(100, req.user?.familyId, req.user?.id);
+    wsService.notifyLeaderboardUpdate(leaderboard, req.user?.familyId);
 
     res.json({
       message: 'Points added successfully',
@@ -39,6 +44,11 @@ export const addPoints = async (req: AuthRequest, res: Response): Promise<void> 
 export const getUserPoints = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const { userId } = req.params;
+    const member = await db.findById('users', userId);
+    if (!member || member.familyId !== req.user?.familyId) {
+      res.status(404).json({ message: 'Family member not found' });
+      return;
+    }
     const userPoints = await db.find('points', { userId });
     const totalPoints = userPoints.reduce((sum, p) => sum + p.points, 0);
 
@@ -54,6 +64,11 @@ export const recordSale = async (req: AuthRequest, res: Response): Promise<void>
 
     if (!userId || !stallId || !amount) {
       res.status(400).json({ message: 'Missing required fields' });
+      return;
+    }
+    const member = await db.findById('users', String(userId));
+    if (!member || member.familyId !== req.user?.familyId || member.isActive === false || member.membershipStatus !== 'Approved') {
+      res.status(404).json({ message: 'Approved member of your family not found' });
       return;
     }
 

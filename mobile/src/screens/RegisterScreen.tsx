@@ -35,6 +35,7 @@ const initialForm = {
   generation: '1',
   address: '',
   profession: '',
+  inviteToken: '',
 };
 
 export const RegisterScreen: React.FC<{ onRegisterSuccess: () => void; navigation: any }> = ({ onRegisterSuccess, navigation }) => {
@@ -92,6 +93,10 @@ export const RegisterScreen: React.FC<{ onRegisterSuccess: () => void; navigatio
   };
 
   const validateForm = () => {
+    if (!form.inviteToken.trim()) {
+      setError('An invite code is required — ask a family admin for an invitation');
+      return false;
+    }
     if (!form.firstName || !form.lastName) {
       setError('First and last name are required');
       return false;
@@ -135,13 +140,22 @@ export const RegisterScreen: React.FC<{ onRegisterSuccess: () => void; navigatio
         generation: parseInt(form.generation) || 1,
         address: form.address,
         profession: form.profession,
+        inviteToken: form.inviteToken.trim(),
         role: 'user',
       };
       
       const response = await register(registrationData);
-      Alert.alert('Success', 'Registration successful!', [
-        { text: 'OK', onPress: onRegisterSuccess }
-      ]);
+      if (response.status === 'Pending') {
+        Alert.alert(
+          'Submitted for approval',
+          'Your registration was received. A family admin must approve it before you can sign in.',
+          [{ text: 'OK', onPress: () => navigation.navigate('Auth') }]
+        );
+      } else {
+        Alert.alert('Success', 'Registration successful!', [
+          { text: 'OK', onPress: () => onRegisterSuccess?.() }
+        ]);
+      }
     } catch (err: any) {
       const message = err.response?.data?.message || err.message || 'Registration failed';
       setError(message);
@@ -214,6 +228,14 @@ export const RegisterScreen: React.FC<{ onRegisterSuccess: () => void; navigatio
           value={form.phone}
           onChangeText={v => handleChange('phone', v)}
           keyboardType="phone-pad"
+          editable={!loading}
+        />
+        <TextInput
+          style={styles.input}
+          placeholder="Invite Code * (from a family admin)"
+          value={form.inviteToken}
+          onChangeText={v => handleChange('inviteToken', v)}
+          autoCapitalize="none"
           editable={!loading}
         />
         

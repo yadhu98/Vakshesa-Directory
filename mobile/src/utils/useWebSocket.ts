@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
+import Constants from 'expo-constants';
 
 interface WebSocketMessage {
   type: 'transaction' | 'balance' | 'leaderboard' | 'stall-stats' | 'ping' | 'pong';
@@ -18,19 +19,12 @@ interface WebSocketHookOptions {
   reconnectInterval?: number;
 }
 
-const USE_DEV_TUNNEL = true;
-const DEV_TUNNEL_BACKEND_URL = 'https://x1qqtsvs-5000.inc1.devtunnels.ms';
-
 const getWebSocketURL = () => {
-  if (USE_DEV_TUNNEL) {
-    return DEV_TUNNEL_BACKEND_URL.replace('https://', 'wss://') + '/ws';
-  }
-  
-  if (Platform.OS === 'web') {
-    return 'ws://localhost:5000/ws';
-  }
-  
-  return 'ws://192.168.1.2:5000/ws';
+  if (Platform.OS === 'web') return 'ws://localhost:5001/ws';
+
+  const hostUri = Constants.expoConfig?.hostUri;
+  const host = hostUri?.split(':')[0] || 'localhost';
+  return `ws://${host}:5001/ws`;
 };
 
 export const useWebSocket = (options: WebSocketHookOptions = {}) => {

@@ -12,6 +12,11 @@ const addPoints = async (req, res) => {
             res.status(400).json({ message: 'Missing required fields' });
             return;
         }
+        const member = await storage_1.db.findById('users', String(userId));
+        if (!member || member.familyId !== req.user?.familyId || member.isActive === false || member.membershipStatus !== 'Approved') {
+            res.status(404).json({ message: 'Approved member of your family not found' });
+            return;
+        }
         const point = await storage_1.db.create('points', {
             userId,
             stallId,
@@ -21,8 +26,8 @@ const addPoints = async (req, res) => {
             awardedAt: new Date(),
         });
         // Get updated leaderboard and broadcast
-        const leaderboard = await (0, dataService_1.getLeaderboard)(100);
-        websocket_1.wsService.notifyLeaderboardUpdate(leaderboard);
+        const leaderboard = await (0, dataService_1.getLeaderboard)(100, req.user?.familyId, req.user?.id);
+        websocket_1.wsService.notifyLeaderboardUpdate(leaderboard, req.user?.familyId);
         res.json({
             message: 'Points added successfully',
             point,
@@ -36,6 +41,11 @@ exports.addPoints = addPoints;
 const getUserPoints = async (req, res) => {
     try {
         const { userId } = req.params;
+        const member = await storage_1.db.findById('users', userId);
+        if (!member || member.familyId !== req.user?.familyId) {
+            res.status(404).json({ message: 'Family member not found' });
+            return;
+        }
         const userPoints = await storage_1.db.find('points', { userId });
         const totalPoints = userPoints.reduce((sum, p) => sum + p.points, 0);
         res.json({ userId, totalPoints });
@@ -50,6 +60,11 @@ const recordSale = async (req, res) => {
         const { userId, stallId, amount, description } = req.body;
         if (!userId || !stallId || !amount) {
             res.status(400).json({ message: 'Missing required fields' });
+            return;
+        }
+        const member = await storage_1.db.findById('users', String(userId));
+        if (!member || member.familyId !== req.user?.familyId || member.isActive === false || member.membershipStatus !== 'Approved') {
+            res.status(404).json({ message: 'Approved member of your family not found' });
             return;
         }
         const sale = await storage_1.db.create('sales', {

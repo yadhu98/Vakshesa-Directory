@@ -1,8 +1,42 @@
 "use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.createUserByAdmin = exports.cleanupNonSuperAdminUsers = exports.getTokenConfig = exports.saveTokenConfig = exports.getEventStatus = exports.togglePhase2 = void 0;
 const storage_1 = require("../config/storage");
 const userService_1 = require("../services/userService");
+const auditService_1 = require("../services/auditService");
 const togglePhase2 = async (req, res) => {
     try {
         const { eventId } = req.params;
@@ -112,23 +146,26 @@ const cleanupNonSuperAdminUsers = async (req, res) => {
             res.status(403).json({ message: 'Only Super Admin can perform this operation' });
             return;
         }
-        const superAdminEmail = 'admin@vakshesa.com';
-        // Get count before deletion
-        const allUsersBefore = await storage_1.db.find('users', {});
-        const countBefore = allUsersBefore.length;
-        // Delete all users except Super Admin
-        const result = await storage_1.db.deleteMany('users', { email: { $ne: superAdminEmail } });
-        // Get remaining users
-        const remainingUsers = await storage_1.db.find('users', {});
+        const familyId = req.user.familyId;
+        if (!familyId) {
+            res.status(400).json({ message: 'Super admin is not associated with a family' });
+            return;
+        }
+        const familyUsers = await storage_1.db.find('users', { familyId });
+        const usersToDelete = familyUsers.filter((user) => user.role !== 'admin' && !user.isSuperUser);
+        for (const user of usersToDelete) {
+            await storage_1.db.deleteOne('users', { _id: user._id, familyId });
+        }
+        const remainingUsers = await storage_1.db.find('users', { familyId });
         res.json({
             message: 'Cleanup completed successfully',
             stats: {
-                usersBeforeCleanup: countBefore,
-                deletedCount: result.deletedCount,
+                usersBeforeCleanup: familyUsers.length,
+                deletedCount: usersToDelete.length,
                 remainingUsers: remainingUsers.length,
                 keptUser: remainingUsers[0] ? `${remainingUsers[0].firstName} ${remainingUsers[0].lastName} (${remainingUsers[0].email})` : 'None'
             },
-            note: 'Super Admin is excluded from family tree. Only Super Admin is kept.',
+            note: 'Cleanup only affects regular members in this family; all administrators and other families are retained.',
         });
     }
     catch (error) {
@@ -144,9 +181,13 @@ const createUserByAdmin = async (req, res) => {
             res.status(403).json({ message: 'Only admins can create users' });
             return;
         }
-        const { firstName, lastName, email, phone, password, role, house, gender, generation, address, profession } = req.body;
+        const { firstName, lastName, email, phone, password, house, gender, generation, address, profession } = req.body;
         if (!firstName || !email || !phone || !password || !house) {
             res.status(400).json({ message: 'Missing required fields' });
+            return;
+        }
+        if (!req.user?.familyId) {
+            res.status(400).json({ message: 'The admin account is not associated with a family' });
             return;
         }
         const user = await (0, userService_1.createUser)({
@@ -155,15 +196,21 @@ const createUserByAdmin = async (req, res) => {
             email: email.toLowerCase(),
             phone,
             password,
-            role: role || 'user',
+            role: 'user',
+            membershipStatus: 'Approved',
+            isSuperUser: false,
             house,
             gender: gender || 'male',
             generation: generation || 1,
             address: address || '',
             profession: profession || '',
-            familyId: 'family-default',
+            familyId: req.user.familyId,
         });
-        const { password: _, ...safeUser } = user;
+        await (0, auditService_1.recordAuditEvent)(String(req.user.id), String(req.user.role), 'user_created_by_admin', String(user._id), {
+            familyId: req.user.familyId,
+        });
+        const { sanitizeUserForViewer } = await Promise.resolve().then(() => __importStar(require('../services/profilePrivacy')));
+        const safeUser = sanitizeUserForViewer(user, String(req.user.id));
         res.status(201).json({
             message: 'User created successfully by admin',
             user: safeUser,

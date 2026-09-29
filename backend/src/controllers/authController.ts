@@ -3,6 +3,8 @@ import { validateUserCredentials, updateUserProfile, createUser } from '../servi
 import { db } from '../config/storage';
 import { generateToken } from '../utils/auth';
 import { AuthRequest } from '../middleware/auth';
+import { DEFAULT_PRIVACY_SETTINGS } from '../models/User';
+import { recordAuditEvent } from '../services/auditService';
 
 export const login = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -13,7 +15,26 @@ export const login = async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    const user = await validateUserCredentials(email, password);
+    const user = await validateUserCredentials(String(email), String(password));
+    if (user.membershipStatus === 'Pending') {
+      res.status(403).json({ code: 'MEMBERSHIP_PENDING', message: 'Your registration is waiting for admin approval' });
+      return;
+    }
+    if (user.membershipStatus === 'Rejected') {
+      res.status(403).json({
+        code: 'MEMBERSHIP_REJECTED',
+        message: user.membershipRejectionReason || 'Your registration was rejected',
+      });
+      return;
+    }
+    if (user.membershipStatus !== 'Approved') {
+      res.status(403).json({ message: 'Account approval is required before signing in' });
+      return;
+    }
+    if (user.isActive === false) {
+      res.status(403).json({ message: 'This account is inactive' });
+      return;
+    }
     const token = generateToken(user._id?.toString() || '', user.role, user.isSuperUser);
 
     res.json({
@@ -35,116 +56,108 @@ export const login = async (req: Request, res: Response): Promise<void> => {
 };
 
 export const register = async (req: Request, res: Response): Promise<void> => {
+  let createdUserId: string | undefined;
+  let createdRequestId: string | undefined;
+  let claimedInviteId: string | undefined;
   try {
-    const { firstName, lastName, name, email, phone, password, role, familyId, house, validationCode, isSuperUser, inviteToken, isAdminCreated, address, occupation, gender, countryCode } = req.body;
-
-    // Support both name (mobile) and firstName/lastName (admin)
-    let userFirstName = firstName;
-    let userLastName = lastName;
-    
-    if (!firstName && name) {
-      const nameParts = name.trim().split(' ');
-      userFirstName = nameParts[0] || 'User';
-      userLastName = nameParts.slice(1).join(' ') || 'Family';
-    }
-
-    if (!userFirstName || !phone || !password || !house) {
-      res.status(400).json({ message: 'Missing required fields: firstName, phone, password, and house are required' });
+    const { firstName, lastName, email, phone, password, house, inviteToken, address, occupation, gender, countryCode, generation } = req.body;
+    if (!firstName || !lastName || !phone || !password || !house || !inviteToken) {
+      res.status(400).json({ message: 'Complete the required profile fields and use a valid invitation' });
       return;
     }
-
-    // Validate house
+    if (req.body.role === 'admin' || req.body.isSuperUser === true || req.body.isAdminCreated === true) {
+      res.status(403).json({ message: 'Self-registration cannot grant administrative access' });
+      return;
+    }
+    if (typeof password !== 'string' || password.length < 8) {
+      res.status(400).json({ message: 'Password must be at least 8 characters long' });
+      return;
+    }
     const validHouses = ['Kadannamanna', 'Ayiranazhi', 'Aripra', 'Mankada'];
     if (!validHouses.includes(house)) {
       res.status(400).json({ message: 'Invalid house. Must be one of: Kadannamanna, Ayiranazhi, Aripra, Mankada' });
       return;
     }
-
-    const normalizedEmail = email.toLowerCase();
-    let finalRole = role || 'user';
-
-    // Super user bypass - no email restriction or invite token required
-    const allowSuperUser = isSuperUser === true;
-
-    // Validate invite token (required for self-registration, but not for admin-created users or super users)
-    if (!allowSuperUser && !isAdminCreated) {
-      if (!inviteToken) {
-        res.status(400).json({ message: 'Invite token is required for registration' });
-        return;
-      }
-
-      const tokenRecord = await db.findOne('inviteTokens', { token: inviteToken });
-      if (!tokenRecord) {
-        res.status(400).json({ message: 'Invalid invite token' });
-        return;
-      }
-      if (tokenRecord.used) {
-        res.status(400).json({ message: 'Invite token already used' });
-        return;
-      }
-      if (new Date(tokenRecord.expiresAt).getTime() < Date.now()) {
-        res.status(400).json({ message: 'Invite token expired' });
-        return;
-      }
+    const normalizedEmail = typeof email === 'string' && email.trim() ? email.trim().toLowerCase() : undefined;
+    const invitation = await db.findOne('inviteTokens', { token: String(inviteToken) });
+    if (!invitation || invitation.used || invitation.revokedAt || new Date(invitation.expiresAt).getTime() <= Date.now()) {
+      res.status(400).json({ message: 'Invalid, expired, or already used invitation' });
+      return;
     }
-
-    if (finalRole === 'admin' && !allowSuperUser) {
-      if (!validationCode) {
-        res.status(400).json({ message: 'Admin registration requires validationCode' });
-        return;
-      }
-      // Validate admin code
-      const codeRecord = await db.findOne('adminCodes', { code: validationCode });
-      if (!codeRecord) {
-        res.status(400).json({ message: 'Invalid validation code' });
-        return;
-      }
-      if (codeRecord.used) {
-        res.status(400).json({ message: 'Validation code already used' });
-        return;
-      }
-      if (new Date(codeRecord.expiresAt).getTime() < Date.now()) {
-        res.status(400).json({ message: 'Validation code expired' });
-        return;
-      }
-      // Mark code used
-      await db.updateOne('adminCodes', { _id: codeRecord._id }, { used: true, usedAt: new Date() });
+    if (invitation.email && invitation.email.toLowerCase() !== normalizedEmail) {
+      res.status(400).json({ message: 'This invitation was issued to a different email address' });
+      return;
+    }
+    const inviter = await db.findById('users', String(invitation.createdBy));
+    if (!inviter || inviter.isActive === false || inviter.membershipStatus !== 'Approved') {
+      res.status(400).json({ message: 'The person who issued this invitation is no longer eligible to invite members' });
+      return;
+    }
+    const familyId = invitation.familyId || inviter.familyId;
+    if (!familyId) {
+      res.status(400).json({ message: 'This invitation is missing its family association' });
+      return;
     }
 
     const user = await createUser({
-      firstName: userFirstName,
-      lastName: userLastName || '',
+      firstName: String(firstName).trim(),
+      lastName: String(lastName).trim(),
       email: normalizedEmail,
-      phone,
+      phone: String(phone).trim(),
       countryCode: countryCode || '+91',
       password,
-      role: finalRole,
+      role: 'user',
+      isSuperUser: false,
+      membershipStatus: 'Pending',
+      privacySettings: { ...DEFAULT_PRIVACY_SETTINGS },
       house,
-      isSuperUser: !!allowSuperUser,
-      familyId: familyId || 'family-default',
+      familyId,
       address: address || '',
       occupation: occupation || '',
       gender: gender || 'male',
+      generation: Number.isInteger(Number(generation)) ? Number(generation) : 1,
     });
+    createdUserId = String(user._id);
 
-    // Mark invite token as used (if not super user)
-    if (!allowSuperUser && inviteToken) {
-      await db.updateOne('inviteTokens', { token: inviteToken }, {
-        used: true,
-        usedBy: user._id,
-        usedAt: new Date(),
-      });
+    const registrationRequest = await db.create('registrationRequests', {
+      userId: createdUserId,
+      inviteId: String(invitation._id),
+      familyId,
+      invitedBy: String(invitation.createdBy),
+      relationshipNote: (invitation as any).relationshipNote || undefined,
+      status: 'Pending',
+      submittedAt: new Date(),
+    });
+    createdRequestId = String(registrationRequest._id);
+
+    const claimedInvite = await db.updateOne('inviteTokens', { _id: invitation._id, used: false, revokedAt: null }, {
+      used: true,
+      usedBy: createdUserId,
+      usedAt: new Date(),
+    });
+    if (!claimedInvite) {
+      await db.deleteOne('registrationRequests', { _id: createdRequestId });
+      await db.deleteOne('users', { _id: createdUserId });
+      createdUserId = undefined;
+      createdRequestId = undefined;
+      res.status(409).json({ message: 'This invitation has already been registered' });
+      return;
     }
+    claimedInviteId = String(invitation._id);
 
-    const token = generateToken(user._id?.toString() || '', user.role, user.isSuperUser);
-    const { password: _, ...safeUser } = user;
-
-    res.status(201).json({
-      message: 'Registration successful',
-      token,
-      user: safeUser,
+    await recordAuditEvent(createdUserId, 'user', 'registration_submitted', createdUserId, {
+      familyId,
+      inviteId: String(invitation._id),
+      invitedBy: String(invitation.createdBy),
     });
+
+    res.status(202).json({ message: 'Registration submitted for admin approval', status: 'Pending', requestId: createdRequestId });
   } catch (error: any) {
+    if (createdRequestId) await db.deleteOne('registrationRequests', { _id: createdRequestId });
+    if (createdUserId) await db.deleteOne('users', { _id: createdUserId });
+    if (claimedInviteId && createdUserId) {
+      await db.updateOne('inviteTokens', { _id: claimedInviteId, usedBy: createdUserId }, { used: false, usedBy: null, usedAt: null });
+    }
     res.status(400).json({ message: error.message });
   }
 };
@@ -176,6 +189,37 @@ export const updateProfile = async (req: AuthRequest, res: Response): Promise<vo
     });
   } catch (error: any) {
     res.status(400).json({ message: error.message });
+  }
+};
+
+export const updatePrivacySettings = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const userId = req.user?.id;
+    const submitted = req.body?.privacySettings;
+    if (!userId || !submitted || typeof submitted !== 'object' || Array.isArray(submitted)) {
+      res.status(400).json({ message: 'Privacy settings are required' });
+      return;
+    }
+    const allowedFields = new Set(Object.keys(DEFAULT_PRIVACY_SETTINGS));
+    const updates: Record<string, 'family' | 'private'> = {};
+    for (const [field, visibility] of Object.entries(submitted)) {
+      if (!allowedFields.has(field) || (visibility !== 'family' && visibility !== 'private')) {
+        res.status(400).json({ message: `Invalid privacy setting for ${field}` });
+        return;
+      }
+      updates[field] = visibility;
+    }
+    const user = await db.findById('users', userId);
+    if (!user) {
+      res.status(404).json({ message: 'User not found' });
+      return;
+    }
+    const privacySettings = { ...DEFAULT_PRIVACY_SETTINGS, ...(user.privacySettings || {}), ...updates };
+    await db.updateOne('users', { _id: userId }, { privacySettings });
+    await recordAuditEvent(userId, user.role, 'profile_privacy_changed', userId, { familyId: user.familyId, fields: Object.keys(updates) });
+    res.json({ message: 'Privacy settings updated', privacySettings });
+  } catch (error: any) {
+    res.status(500).json({ message: error.message });
   }
 };
 

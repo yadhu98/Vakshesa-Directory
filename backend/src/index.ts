@@ -16,6 +16,7 @@ import familyRoutes from './routes/families';
 import tokenRoutes from './routes/tokens';
 import inviteRoutes from './routes/inviteRoutes';
 import { wsService } from './services/websocket';
+import { DEFAULT_PRIVACY_SETTINGS } from './models/User';
 
 dotenv.config();
 
@@ -131,6 +132,8 @@ const initializeSuperAdmin = async () => {
         phone: '+919999999999',
         password: hashedPassword,
         role: 'admin',
+        membershipStatus: 'Approved',
+        privacySettings: { ...DEFAULT_PRIVACY_SETTINGS },
         house: 'Kadannamanna',
         familyId: defaultFamily._id,
         isActive: true,
@@ -152,16 +155,18 @@ const initializeSuperAdmin = async () => {
       console.log('ℹ️  Super Admin exists - Email: admin@vakshesa.com');
     }
     
-    // Also update all users with role 'admin' to have isSuperUser flag
-    const allAdmins = await db.find('users', { role: 'admin' });
-    for (const admin of allAdmins) {
-      if (!admin.isSuperUser) {
-        await db.updateOne('users', { _id: admin._id }, { isSuperUser: true });
-        console.log(`✅ Updated admin ${admin.email} with isSuperUser flag`);
-      }
-    }
   } catch (error) {
     console.error('❌ Failed to create Super Admin:', error);
+  }
+};
+
+const migrateLegacyAccessDefaults = async () => {
+  const users = await db.find('users', {});
+  for (const user of users) {
+    const updates: Record<string, any> = {};
+    if (!user.membershipStatus) updates.membershipStatus = 'Approved';
+    if (!user.privacySettings) updates.privacySettings = { ...DEFAULT_PRIVACY_SETTINGS };
+    if (Object.keys(updates).length) await db.updateOne('users', { _id: user._id }, updates);
   }
 };
 
@@ -174,6 +179,8 @@ const startServer = async () => {
     } else {
       console.log('📦 Using in-memory storage');
     }
+
+    await migrateLegacyAccessDefaults();
     
     // Initialize super admin
     await initializeSuperAdmin();

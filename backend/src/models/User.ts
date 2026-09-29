@@ -1,6 +1,33 @@
 import { Schema, model } from 'mongoose';
 
 export type House = 'Kadannamanna' | 'Ayiranazhi' | 'Aripra' | 'Mankada';
+export type MembershipStatus = 'Pending' | 'Approved' | 'Rejected';
+
+export const DEFAULT_PRIVACY_SETTINGS: Record<string, 'family' | 'private'> = {
+  email: 'private',
+  phone: 'private',
+  countryCode: 'private',
+  dateOfBirth: 'private',
+  gender: 'private',
+  address: 'private',
+  notes: 'private',
+  linkedin: 'private',
+  instagram: 'private',
+  facebook: 'private',
+  marriageDate: 'private',
+  deathDate: 'private',
+  firstName: 'family',
+  lastName: 'family',
+  profilePicture: 'family',
+  house: 'family',
+  occupation: 'family',
+  generation: 'family',
+  isAlive: 'family',
+  fatherId: 'family',
+  motherId: 'family',
+  spouseId: 'family',
+  children: 'family',
+};
 
 export interface IUser {
   _id?: string;
@@ -12,6 +39,13 @@ export interface IUser {
   password: string;
   role: 'user' | 'admin';
   isSuperUser?: boolean;
+  membershipStatus?: MembershipStatus;
+  privacySettings?: Record<string, 'family' | 'private'>;
+  membershipReviewedBy?: string;
+  membershipReviewedAt?: Date;
+  membershipRejectionReason?: string;
+  adminChangedBy?: string;
+  adminChangedAt?: Date;
   familyId: string;
   house: House;
   profilePicture?: string;
@@ -86,6 +120,21 @@ const userSchema = new Schema<IUser>(
       type: Boolean,
       default: false,
     },
+    membershipStatus: {
+      type: String,
+      enum: ['Pending', 'Approved', 'Rejected'],
+      default: 'Approved',
+      index: true,
+    },
+    privacySettings: {
+      type: Schema.Types.Mixed,
+      default: () => ({ ...DEFAULT_PRIVACY_SETTINGS }),
+    },
+    membershipReviewedBy: { type: String },
+    membershipReviewedAt: { type: Date },
+    membershipRejectionReason: { type: String, trim: true, maxlength: 500 },
+    adminChangedBy: { type: String },
+    adminChangedAt: { type: Date },
     familyId: {
       type: String,
       required: true,

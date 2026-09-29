@@ -1,8 +1,10 @@
 import { Request, Response } from 'express';
+import { AuthRequest } from '../middleware/auth';
 import { db } from '../config/storage';
 import { ICarnivalStall, EventCategory } from '../models/CarnivalStall';
 import { IUser } from '../models/User';
 import crypto from 'crypto';
+import { sanitizeUserForViewer } from '../services/profilePrivacy';
 
 // Generate unique QR code for event
 const generateQRCode = (): string => {
@@ -22,16 +24,18 @@ const generateShortCode = (): string => {
 // Get all users for admin selection
 export const getUsers = async (req: Request, res: Response) => {
   try {
-    const users = await db.find('users', { isActive: true });
+    const authReq = req as AuthRequest;
+    const users = await db.find('users', { familyId: authReq.user?.familyId });
+    const approvedUsers = users.filter((user: any) => user.isActive !== false && user.membershipStatus === 'Approved');
     
-    const userList = users.map((user: any) => ({
-      _id: user._id,
-      name: `${user.firstName} ${user.lastName}`,
-      email: user.email,
-      phone: user.phone,
-      house: user.house,
-      role: user.role,
-    }));
+    const userList = approvedUsers.map((user: any) => {
+      const safeUser = sanitizeUserForViewer(user, String(authReq.user?.id));
+      return {
+        _id: user._id,
+        name: `${safeUser.firstName || ''} ${safeUser.lastName || ''}`.trim() || 'Family member',
+        role: user.role,
+      };
+    });
 
     res.json({ users: userList });
   } catch (error: any) {

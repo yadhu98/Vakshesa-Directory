@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Feather } from 'feather-icons-react';
-import { api } from '../services/api';
+import { api, adminService, getCurrentUser, isAdminUser } from '../services/api';
 import AppHeader from '../components/AppHeader';
 
 const styles = {
@@ -33,7 +33,9 @@ const styles = {
 const InfoRow = ({ label, value, multiline }: { label: string; value: any; multiline?: boolean }) => (
   <div style={styles.infoRow}>
     <div style={styles.infoLabel}>{label}</div>
-    <div style={{ ...styles.infoValue, ...(multiline ? styles.infoValueMultiline : {}) }}>{value}</div>
+    <div style={{ ...styles.infoValue, ...(multiline ? styles.infoValueMultiline : {}) }}>
+      {value === undefined || value === null || value === '' ? 'Not shared' : value}
+    </div>
   </div>
 );
 
@@ -42,6 +44,9 @@ const EnhancedProfileScreen = () => {
   const navigate = useNavigate();
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [savingRole, setSavingRole] = useState(false);
+  const [resettingPassword, setResettingPassword] = useState(false);
+  const [resetMessage, setResetMessage] = useState('');
 
   useEffect(() => {
     const loadProfile = async () => {
@@ -90,6 +95,42 @@ const EnhancedProfileScreen = () => {
     return currentUser?._id === profile._id;
   };
 
+  const canManageAdmin = isAdminUser(getCurrentUser()) && !isOwnProfile();
+
+  const handleResetPassword = async () => {
+    if (!profile?._id) return;
+    const fullName = `${profile.firstName || ''} ${profile.lastName || ''}`.trim() || 'this member';
+    if (!window.confirm(`Reset ${fullName}'s password to Password123? They will need to log in with the new password.`)) return;
+    setResettingPassword(true);
+    setResetMessage('');
+    try {
+      await adminService.resetMemberPassword(profile._id);
+      setResetMessage('Password has been reset to Password123');
+    } catch (err: any) {
+      setResetMessage(err?.response?.data?.message || 'Could not reset password');
+    } finally {
+      setResettingPassword(false);
+    }
+  };
+
+  const toggleAdminRole = async () => {
+    const nextRole: 'admin' | 'user' = profile.role === 'admin' ? 'user' : 'admin';
+    const name = `${profile.firstName || ''} ${profile.lastName || ''}`.trim() || 'this member';
+    const message = nextRole === 'admin'
+      ? `Make ${name} a family admin? They will be able to approve members and manage admin access.`
+      : `Remove admin access from ${name}?`;
+    if (!window.confirm(message)) return;
+    setSavingRole(true);
+    try {
+      await adminService.setMemberRole(profile._id, nextRole);
+      setProfile((prev: any) => ({ ...prev, role: nextRole }));
+    } catch (err: any) {
+      alert(err?.response?.data?.message || 'Could not change admin access');
+    } finally {
+      setSavingRole(false);
+    }
+  };
+
   return (
     <div style={styles.container}>
       <AppHeader 
@@ -100,7 +141,7 @@ const EnhancedProfileScreen = () => {
       <div style={styles.headerCard as React.CSSProperties}>
         <div style={styles.avatar}>{profile.firstName?.[0]}{profile.lastName?.[0]}</div>
         <div style={styles.name}>{profile.firstName} {profile.lastName}</div>
-        <div style={styles.email}>{profile.email}</div>
+        {profile.email ? <div style={styles.email}>{profile.email}</div> : <div style={styles.email}>Email not shared</div>}
         <div><span style={styles.badge}>{profile.house || 'No House'}</span></div>
       </div>
       <div style={styles.statsGrid}>
@@ -115,6 +156,78 @@ const EnhancedProfileScreen = () => {
           <div style={styles.statLabel}>Points</div>
         </div>
       </div>
+      {canManageAdmin && (
+        <div style={styles.section}>
+          <div style={styles.sectionTitle}>Access</div>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+            <div>
+              <div style={{ fontSize: 15, color: '#000', fontWeight: 500 }}>Family admin</div>
+              <div style={{ fontSize: 12, color: '#666', marginTop: 2 }}>
+                Admins can approve member requests and manage other admins.
+              </div>
+            </div>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={profile.role === 'admin'}
+              aria-label="Toggle family admin"
+              onClick={toggleAdminRole}
+              disabled={savingRole}
+              style={{
+                width: 52,
+                height: 30,
+                borderRadius: 15,
+                border: 'none',
+                padding: 3,
+                background: profile.role === 'admin' ? '#1B8A5A' : '#CCCCCC',
+                cursor: savingRole ? 'not-allowed' : 'pointer',
+                opacity: savingRole ? 0.6 : 1,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: profile.role === 'admin' ? 'flex-end' : 'flex-start',
+                flexShrink: 0,
+                transition: 'background 0.2s',
+              }}
+            >
+              <span style={{ width: 24, height: 24, borderRadius: '50%', background: '#fff', display: 'block', boxShadow: '0 1px 3px rgba(0,0,0,0.3)' }} />
+            </button>
+          </div>
+          <div style={{ fontSize: 12, color: '#999', marginTop: 10 }}>
+            {profile.role === 'admin' ? 'This member is currently an admin.' : 'This member is a regular member.'}
+          </div>
+        </div>
+      )}
+      {canManageAdmin && (
+        <div style={styles.section}>
+          <div style={styles.sectionTitle}>Admin Actions</div>
+          <div style={{ fontSize: 13, color: '#666', marginBottom: 12 }}>
+            Resetting signs this member out of all devices. Share the new temporary password with them directly.
+          </div>
+          <button
+            type="button"
+            onClick={handleResetPassword}
+            disabled={resettingPassword}
+            style={{
+              width: '100%',
+              background: resettingPassword ? '#999' : '#C62828',
+              color: '#fff',
+              border: 'none',
+              borderRadius: 12,
+              padding: '14px 16px',
+              fontWeight: 600,
+              fontSize: 15,
+              cursor: resettingPassword ? 'not-allowed' : 'pointer',
+            }}
+          >
+            {resettingPassword ? 'Resetting...' : 'Reset password to Password123'}
+          </button>
+          {resetMessage && (
+            <div style={{ fontSize: 13, marginTop: 10, color: resetMessage.startsWith('Password has been reset') ? '#1B8A5A' : '#C62828' }}>
+              {resetMessage}
+            </div>
+          )}
+        </div>
+      )}
       <div style={styles.section}>
         <div style={styles.sectionTitle}>Personal Information</div>
         <InfoRow label="Full Name" value={`${profile.firstName} ${profile.lastName}`} />

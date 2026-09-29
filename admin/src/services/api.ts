@@ -1,6 +1,8 @@
 import axios from 'axios';
 
-const API_BASE_URL = 'https://vakshesa-directory.onrender.com/api'
+const API_BASE_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+  ? 'http://localhost:5001/api'
+  : 'https://vakshesa-directory.onrender.com/api';
 
 const axiosInstance = axios.create({
   baseURL: API_BASE_URL,
@@ -44,6 +46,17 @@ export const authService = {
 };
 
 export const adminService = {
+  getRegistrationRequests: (status: 'all' | 'Pending' | 'Approved' | 'Rejected' = 'all') =>
+    axiosInstance.get('/admin/registration-requests', { params: { status } }),
+  reviewRegistrationRequest: (requestId: string, action: 'approve' | 'reject', reason?: string) =>
+    axiosInstance.patch(`/admin/registration-requests/${requestId}/${action}`, { reason }),
+  getFamilyAdmins: () => axiosInstance.get('/admin/family-admins'),
+  getFamilyMembers: () => axiosInstance.get('/bulk/users'),
+  changeFamilyAdminRole: (userId: string, role: 'admin' | 'user') =>
+    axiosInstance.patch(`/admin/family-admins/${userId}`, { role }),
+  getAuditEvents: () => axiosInstance.get('/admin/audit-events'),
+  getFamilyInvites: () => axiosInstance.get('/admin/invitations'),
+  revokeInvite: (inviteId: string) => axiosInstance.delete(`/invites/${inviteId}`),
   togglePhase2: (eventId: string, isActive: boolean) =>
     axiosInstance.put(`/admin/event/${eventId}/phase2`, { isActive }),
   getEventStatus: (eventId: string) =>

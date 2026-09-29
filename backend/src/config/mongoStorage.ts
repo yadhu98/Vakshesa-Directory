@@ -12,6 +12,9 @@ import { StallParticipation } from '../models/StallParticipation';
 import { AdminCode } from '../models/AdminCode';
 import { Transaction } from '../models/Transaction';
 import { StallVisit } from '../models/StallVisit';
+import { Invite } from '../models/Invite';
+import { RegistrationRequest } from '../models/RegistrationRequest';
+import { AuditEvent } from '../models/AuditEvent';
 
 // Storage interface to match in-memory storage
 interface StorageRecord {
@@ -38,6 +41,9 @@ class MongoDBStorage {
       admincodes: AdminCode as any,
       transactions: Transaction as any,
       stallvisits: StallVisit as any,
+      invitetokens: Invite as any,
+      registrationrequests: RegistrationRequest as any,
+      auditevents: AuditEvent as any,
       // For collections without models, we'll create them dynamically
     };
   }

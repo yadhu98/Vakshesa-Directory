@@ -1,7 +1,32 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.User = void 0;
+exports.User = exports.DEFAULT_PRIVACY_SETTINGS = void 0;
 const mongoose_1 = require("mongoose");
+exports.DEFAULT_PRIVACY_SETTINGS = {
+    email: 'private',
+    phone: 'private',
+    countryCode: 'private',
+    dateOfBirth: 'private',
+    gender: 'private',
+    address: 'private',
+    notes: 'private',
+    linkedin: 'private',
+    instagram: 'private',
+    facebook: 'private',
+    marriageDate: 'private',
+    deathDate: 'private',
+    firstName: 'family',
+    lastName: 'family',
+    profilePicture: 'family',
+    house: 'family',
+    occupation: 'family',
+    generation: 'family',
+    isAlive: 'family',
+    fatherId: 'family',
+    motherId: 'family',
+    spouseId: 'family',
+    children: 'family',
+};
 const userSchema = new mongoose_1.Schema({
     firstName: {
         type: String,
@@ -44,6 +69,21 @@ const userSchema = new mongoose_1.Schema({
         type: Boolean,
         default: false,
     },
+    membershipStatus: {
+        type: String,
+        enum: ['Pending', 'Approved', 'Rejected'],
+        default: 'Approved',
+        index: true,
+    },
+    privacySettings: {
+        type: mongoose_1.Schema.Types.Mixed,
+        default: () => ({ ...exports.DEFAULT_PRIVACY_SETTINGS }),
+    },
+    membershipReviewedBy: { type: String },
+    membershipReviewedAt: { type: Date },
+    membershipRejectionReason: { type: String, trim: true, maxlength: 500 },
+    adminChangedBy: { type: String },
+    adminChangedAt: { type: Date },
     familyId: {
         type: String,
         required: true,

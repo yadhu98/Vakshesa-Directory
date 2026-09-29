@@ -1,11 +1,13 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
+import { db } from '../config/storage';
 
 export interface AuthRequest extends Request {
   user?: {
     id: string;
     role: string;
     isSuperUser?: boolean;
+    familyId?: string;
   };
   body: any;
   params: any;
@@ -13,7 +15,7 @@ export interface AuthRequest extends Request {
   headers: any;
 }
 
-export const authMiddleware = (req: AuthRequest, res: Response, next: NextFunction): void => {
+export const authMiddleware = async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
   try {
     const token = req.headers.authorization?.split(' ')[1];
 
@@ -23,7 +25,29 @@ export const authMiddleware = (req: AuthRequest, res: Response, next: NextFuncti
     }
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret') as any;
-    req.user = { id: decoded.id, role: decoded.role, isSuperUser: decoded.isSuperUser || false };
+    const user = await db.findById('users', String(decoded.id));
+    if (!user || user.isActive === false) {
+      res.status(401).json({ message: 'Account is unavailable' });
+      return;
+    }
+    if (user.membershipStatus === 'Pending') {
+      res.status(403).json({ code: 'MEMBERSHIP_PENDING', message: 'Your registration is waiting for admin approval' });
+      return;
+    }
+    if (user.membershipStatus === 'Rejected') {
+      res.status(403).json({ code: 'MEMBERSHIP_REJECTED', message: user.membershipRejectionReason || 'Your registration was rejected' });
+      return;
+    }
+    if (user.membershipStatus !== 'Approved') {
+      res.status(403).json({ message: 'Account approval is required to access this service' });
+      return;
+    }
+    req.user = {
+      id: String(user._id),
+      role: user.role,
+      isSuperUser: !!user.isSuperUser,
+      familyId: user.familyId,
+    };
     next();
   } catch (error) {
     res.status(401).json({ message: 'Invalid token' });

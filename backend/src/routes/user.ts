@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { getUserProfile, getFamilyTreeStructure, search, getLeaderboardData, toggleUserStatus, updateUser, deleteUser } from '../controllers/userController';
+import { getUserProfile, getFamilyTreeStructure, search, getLeaderboardData, toggleUserStatus, updateUser, updateOwnProfile, deleteUser } from '../controllers/userController';
 import { authMiddleware, adminMiddleware } from '../middleware/auth';
 
 const router = Router();
@@ -11,7 +11,7 @@ router.get('/family/:familyId/tree', authMiddleware, getFamilyTreeStructure);
 
 // Parameterized routes last
 router.get('/:userId', authMiddleware, getUserProfile);
-router.put('/:userId/profile', authMiddleware, updateUser);
+router.put('/:userId/profile', authMiddleware, updateOwnProfile);
 router.patch('/:userId/status', authMiddleware, adminMiddleware, toggleUserStatus);
 router.put('/:userId', authMiddleware, adminMiddleware, updateUser);
 router.delete('/:userId', authMiddleware, adminMiddleware, deleteUser);

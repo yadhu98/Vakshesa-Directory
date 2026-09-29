@@ -1,410 +1,180 @@
-import { Request, Response } from 'express';
+import { Response } from 'express';
 import { db } from '../config/storage';
+import { AuthRequest } from '../middleware/auth';
+import { sanitizeUserForViewer } from '../services/profilePrivacy';
 
-// Get full family tree structure
-export const getFamilyTree = async (req: Request, res: Response) => {
+const isApprovedMember = (user: any, familyId?: string) => !!user && user.familyId === familyId && user.isActive !== false && user.membershipStatus === 'Approved';
+
+export const getFamilyTree = async (req: AuthRequest, res: Response) => {
   try {
-    let { familyId } = req.params;
-    const { house } = req.query;
-
-    // Build query based on parameters
-    let query: any = {};
-    
-    if (familyId === 'family-default' && house) {
-      // For family-default with house filter, query by house only
-      query.house = house;
-    } else if (familyId === 'family-default') {
-      // For family-default without house filter, get users with family-default familyId
-      query.familyId = 'family-default';
-    } else {
-      // For specific familyId, use it directly
-      query.familyId = familyId;
-      if (house) {
-        query.house = house;
-      }
-    }
-
-    let users = await db.find('users', query);
-
-    // Exclude Super Admin from family tree (they don't have family relations)
-    users = users.filter((user: any) => !user.isSuperUser);
-
-    // Build tree structure
-    const tree = buildTreeStructure(users);
-
-    res.json({
-      familyId: familyId === 'family-default' ? 'family-default' : familyId,
-      house: house || 'all',
-      totalMembers: users.length,
-      totalGenerations: users.length > 0 ? Math.max(...users.map((u: any) => u.generation || 1)) : 0,
-      tree,
-    });
+    const { familyId } = req.params;
+    if (familyId !== req.user?.familyId) return res.status(403).json({ message: 'You can only access your own family directory' });
+    const house = typeof req.query.house === 'string' ? req.query.house : undefined;
+    const users = (await db.find('users', { familyId }))
+      .filter((user: any) => !user.isSuperUser && user.isActive !== false && user.membershipStatus === 'Approved' && (!house || user.house === house))
+      .map((user: any) => sanitizeUserForViewer(user, String(req.user?.id)));
+    res.json({ familyId, house: house || 'all', totalMembers: users.length, totalGenerations: users.length ? Math.max(...users.map((user: any) => user.generation || 1)) : 0, tree: buildTreeStructure(users) });
   } catch (error: any) {
-    console.error('Get family tree error:', error);
     res.status(500).json({ message: 'Failed to fetch family tree', error: error.message });
   }
 };
 
-// Get specific member with their immediate family
-export const getFamilyMember = async (req: Request, res: Response) => {
+export const getFamilyMember = async (req: AuthRequest, res: Response) => {
   try {
-    const { userId } = req.params;
-
-    const user = await db.findById('users', userId);
-    if (!user) {
-      return res.status(404).json({ message: 'User not found' });
-    }
-
-    // Get immediate family members
-    const immediateFamily = await getImmediateFamily(user);
-
-    res.json({
-      member: user,
-      ...immediateFamily,
-    });
+    const user = await db.findById('users', req.params.userId);
+    if (!isApprovedMember(user, req.user?.familyId)) return res.status(404).json({ message: 'User not found' });
+    res.json({ member: sanitizeUserForViewer(user, String(req.user?.id)), ...await getImmediateFamily(user, req.user?.familyId, String(req.user?.id)) });
   } catch (error: any) {
-    console.error('Get family member error:', error);
     res.status(500).json({ message: 'Failed to fetch family member', error: error.message });
   }
 };
 
-// Update family relationships
-export const updateFamilyRelationships = async (req: Request, res: Response) => {
+export const updateFamilyRelationships = async (req: AuthRequest, res: Response) => {
   try {
     const { userId } = req.params;
-    const { fatherId, motherId, spouseId, children } = req.body;
-
     const user = await db.findById('users', userId);
-    if (!user) {
-      return res.status(404).json({ message: 'User not found' });
+    if (!isApprovedMember(user, req.user?.familyId)) return res.status(404).json({ message: 'Family member not found' });
+    if (!user) return res.status(404).json({ message: 'Family member not found' });
+    const { fatherId, motherId, spouseId, children } = req.body;
+    const updates: Record<string, any> = {};
+    const validRelatedUser = async (id: string) => isApprovedMember(await db.findById('users', id), user.familyId);
+
+    for (const [field, id] of [['fatherId', fatherId], ['motherId', motherId], ['spouseId', spouseId]] as const) {
+      if (id === undefined) continue;
+      if (id && !(await validRelatedUser(id))) return res.status(400).json({ message: `${field} must refer to an approved member of this family` });
+      updates[field] = id || null;
     }
-
-    const updates: any = {
-      updatedAt: new Date(),
-    };
-
-    // Update father
-    if (fatherId !== undefined) {
-      if (fatherId) {
-        const father = await db.findById('users', fatherId);
-        if (!father) {
-          return res.status(404).json({ message: 'Father not found' });
-        }
-        // Add this user to father's children
-        if (!father.children) father.children = [];
-        if (!father.children.includes(userId)) {
-          await db.update('users', fatherId, {
-            children: [...father.children, userId],
-            updatedAt: new Date(),
-          });
-        }
-      }
-      updates.fatherId = fatherId || null;
-    }
-
-    // Update mother
-    if (motherId !== undefined) {
-      if (motherId) {
-        const mother = await db.findById('users', motherId);
-        if (!mother) {
-          return res.status(404).json({ message: 'Mother not found' });
-        }
-        // Add this user to mother's children
-        if (!mother.children) mother.children = [];
-        if (!mother.children.includes(userId)) {
-          await db.update('users', motherId, {
-            children: [...mother.children, userId],
-            updatedAt: new Date(),
-          });
-        }
-      }
-      updates.motherId = motherId || null;
-    }
-
-    // Update spouse (bidirectional)
-    if (spouseId !== undefined) {
-      // Remove old spouse relationship
-      if (user.spouseId && user.spouseId !== spouseId) {
-        await db.update('users', user.spouseId, {
-          spouseId: null,
-          updatedAt: new Date(),
-        });
-      }
-
-      if (spouseId) {
-        const spouse = await db.findById('users', spouseId);
-        if (!spouse) {
-          return res.status(404).json({ message: 'Spouse not found' });
-        }
-        // Set bidirectional spouse relationship
-        await db.update('users', spouseId, {
-          spouseId: userId,
-          updatedAt: new Date(),
-        });
-      }
-      updates.spouseId = spouseId || null;
-    }
-
-    // Update children
     if (children !== undefined) {
-      updates.children = children || [];
+      if (!Array.isArray(children)) return res.status(400).json({ message: 'children must be an array' });
+      for (const childId of children) if (!(await validRelatedUser(childId))) return res.status(400).json({ message: 'Children must be approved members of this family' });
+      updates.children = children;
     }
-
-    // Calculate generation based on parents
-    if (fatherId || motherId) {
-      const parentId = fatherId || motherId;
-      const parent = await db.findById('users', parentId);
-      if (parent) {
-        updates.generation = (parent.generation || 1) + 1;
+    for (const field of ['fatherId', 'motherId'] as const) {
+      if (updates[field] === undefined) continue;
+      const previousId = user[field];
+      const nextId = updates[field];
+      if (previousId && previousId !== nextId) {
+        const previous = await db.findById('users', previousId);
+        if (previous && previous.familyId === user.familyId) {
+          await db.update('users', previousId, { children: (previous.children || []).filter((id: string) => String(id) !== String(userId)) });
+        }
+      }
+      if (nextId) {
+        const parent = await db.findById('users', nextId);
+        if (!parent) return res.status(400).json({ message: 'Parent must be an approved member of this family' });
+        const childIds = (parent.children || []).map(String);
+        if (!childIds.includes(String(userId))) await db.update('users', nextId, { children: [...childIds, String(userId)] });
       }
     }
-
-    await db.update('users', userId, updates);
-
+    if (updates.spouseId !== undefined) {
+      if (user.spouseId && user.spouseId !== updates.spouseId) {
+        const previousSpouse = await db.findById('users', user.spouseId);
+        if (previousSpouse && previousSpouse.familyId === user.familyId) await db.update('users', user.spouseId, { spouseId: null });
+      }
+      if (updates.spouseId) await db.update('users', updates.spouseId, { spouseId: String(userId) });
+    }
+    const parentId = updates.fatherId || updates.motherId;
+    if (parentId) {
+      const parent = await db.findById('users', parentId);
+      if (!parent) return res.status(400).json({ message: 'Parent must be an approved member of this family' });
+      updates.generation = (parent.generation || 1) + 1;
+    }
+    await db.updateOne('users', { _id: userId }, updates);
     const updatedUser = await db.findById('users', userId);
-    const immediateFamily = await getImmediateFamily(updatedUser);
-
-    res.json({
-      message: 'Family relationships updated successfully',
-      member: updatedUser,
-      ...immediateFamily,
-    });
+    res.json({ message: 'Family relationships updated successfully', member: sanitizeUserForViewer(updatedUser, String(req.user?.id)), ...await getImmediateFamily(updatedUser, user.familyId, String(req.user?.id)) });
   } catch (error: any) {
-    console.error('Update family relationships error:', error);
     res.status(500).json({ message: 'Failed to update relationships', error: error.message });
   }
 };
 
-// Get family members by generation
-export const getGenerationMembers = async (req: Request, res: Response) => {
+export const getGenerationMembers = async (req: AuthRequest, res: Response) => {
   try {
     const { familyId, generation } = req.params;
-
-    const members = await db.find('users', {
-      familyId,
-      generation: parseInt(generation),
-    });
-
-    res.json({
-      generation: parseInt(generation),
-      totalMembers: members.length,
-      members,
-    });
+    if (familyId !== req.user?.familyId) return res.status(403).json({ message: 'You can only access your own family directory' });
+    const members = (await db.find('users', { familyId, generation: parseInt(generation, 10) }))
+      .filter((user: any) => user.isActive !== false && user.membershipStatus === 'Approved')
+      .map((user: any) => sanitizeUserForViewer(user, String(req.user?.id)));
+    res.json({ generation: parseInt(generation, 10), totalMembers: members.length, members });
   } catch (error: any) {
-    console.error('Get generation members error:', error);
     res.status(500).json({ message: 'Failed to fetch generation members', error: error.message });
   }
 };
 
-// Search users for family relationship selection
-export const searchForRelatives = async (req: Request, res: Response) => {
+export const searchForRelatives = async (req: AuthRequest, res: Response) => {
   try {
-    const { q, familyId, excludeId, relationshipType } = req.query;
-
-    if (!q) {
-      return res.status(400).json({ message: 'Search query required' });
-    }
-
-    const query: any = {};
-    if (familyId) {
-      query.familyId = familyId;
-    }
-
-    const allUsers = await db.find('users', query);
-    const searchTerm = String(q).toLowerCase();
-
-    let results = allUsers.filter((u: any) => {
-      if (excludeId && u._id === excludeId) return false;
-      
-      const fullName = `${u.firstName} ${u.lastName}`.toLowerCase();
-      const email = u.email?.toLowerCase() || '';
-      const phone = u.phone || '';
-      
-      return fullName.includes(searchTerm) || 
-             email.includes(searchTerm) || 
-             phone.includes(searchTerm);
-    });
-
-    // Filter by gender for specific relationships
-    if (relationshipType === 'father') {
-      results = results.filter((u: any) => u.gender === 'male');
-    } else if (relationshipType === 'mother') {
-      results = results.filter((u: any) => u.gender === 'female');
-    }
-
-    // Limit results
+    const { q, excludeId, relationshipType } = req.query;
+    if (!q) return res.status(400).json({ message: 'Search query required' });
+    const searchTerm = String(q).trim().toLowerCase();
+    let results = (await db.find('users', { familyId: req.user?.familyId }))
+      .filter((user: any) => isApprovedMember(user, req.user?.familyId) && String(user._id) !== String(excludeId || ''))
+      .map((user: any) => sanitizeUserForViewer(user, String(req.user?.id)))
+      .filter((user: any) => `${user.firstName || ''} ${user.lastName || ''}`.toLowerCase().includes(searchTerm));
+    if (relationshipType === 'father') results = results.filter((user: any) => user.gender === 'male');
+    if (relationshipType === 'mother') results = results.filter((user: any) => user.gender === 'female');
     results = results.slice(0, 20);
-
-    // Remove sensitive data
-    results = results.map((u: any) => {
-      const { password, ...userWithoutPassword } = u;
-      return userWithoutPassword;
-    });
-
-    res.json({
-      query: q,
-      count: results.length,
-      results,
-    });
+    res.json({ query: q, count: results.length, results });
   } catch (error: any) {
-    console.error('Search relatives error:', error);
     res.status(500).json({ message: 'Failed to search relatives', error: error.message });
   }
 };
 
-// Helper function to build tree structure
-function buildTreeStructure(users: any[]) {
-  // If no users, return empty array
-  if (!users || users.length === 0) {
-    return [];
-  }
-
-  // Create a map of userId -> user for quick lookups
-  const userMap = new Map();
-  users.forEach(user => {
-    userMap.set(user._id, {
-      ...user,
-      children: [],
-      spouses: [],
-    });
-  });
-
-  const rootNodes: any[] = [];
-  const processedIds = new Set<string>();
-
-  // First pass: identify parent-child relationships and build tree structure
-  users.forEach(user => {
-    const node = userMap.get(user._id);
-    
-    // Check if this user has a parent in the tree
-    const hasParent = (user.fatherId && userMap.has(user.fatherId)) || 
-                      (user.motherId && userMap.has(user.motherId));
-    
-    if (hasParent) {
-      // Add to parent's children
-      if (user.fatherId && userMap.has(user.fatherId)) {
-        const father = userMap.get(user.fatherId);
-        if (!father.children.find((c: any) => c._id === user._id)) {
-          father.children.push(node);
-        }
-      }
-      if (user.motherId && userMap.has(user.motherId)) {
-        const mother = userMap.get(user.motherId);
-        if (!mother.children.find((c: any) => c._id === user._id)) {
-          mother.children.push(node);
-        }
-      }
-      processedIds.add(user._id);
-    } else {
-      // No parent found in tree, this is a root node
-      if (!processedIds.has(user._id) && !rootNodes.find(n => n._id === user._id)) {
-        rootNodes.push(node);
-        processedIds.add(user._id);
-      }
-    }
-  });
-
-  // Second pass: link spouses
-  users.forEach(user => {
-    const node = userMap.get(user._id);
-    if (user.spouseId && userMap.has(user.spouseId)) {
-      const spouse = userMap.get(user.spouseId);
-      if (!node.spouses.find((s: any) => s._id === spouse._id)) {
-        node.spouses.push(spouse);
-      }
-    }
-  });
-
-  // If no tree structure was built (no parent-child relationships), return all users as root nodes
-  if (rootNodes.length === 0) {
-    return users.map(user => {
-      const node = userMap.get(user._id);
-      return node || { ...user, children: [], spouses: [] };
-    });
-  }
-
-  return rootNodes;
-}
-
-// Helper function to get immediate family
-async function getImmediateFamily(user: any) {
-  const father = user.fatherId ? await db.findById('users', user.fatherId) : null;
-  const mother = user.motherId ? await db.findById('users', user.motherId) : null;
-  const spouse = user.spouseId ? await db.findById('users', user.spouseId) : null;
-  
-  const children = [];
-  if (user.children && user.children.length > 0) {
-    for (const childId of user.children) {
-      const child = await db.findById('users', childId);
-      if (child) children.push(child);
-    }
-  }
-
-  // Get siblings (same parents)
-  const siblings = [];
-  if (father || mother) {
-    const parentId = father?._id || mother?._id;
-    let parent = null;
-    if (parentId) {
-      parent = await db.findById('users', parentId);
-    }
-    if (parent && parent.children) {
-      for (const siblingId of parent.children) {
-        if (siblingId !== user._id) {
-          const sibling = await db.findById('users', siblingId);
-          if (sibling) siblings.push(sibling);
-        }
-      }
-    }
-  }
-
-  return {
-    father: father ? { ...father, password: undefined } : null,
-    mother: mother ? { ...mother, password: undefined } : null,
-    spouse: spouse ? { ...spouse, password: undefined } : null,
-    children: children.map(c => ({ ...c, password: undefined })),
-    siblings: siblings.map(s => ({ ...s, password: undefined })),
-  };
-}
-
-// Get breadcrumb path from root to a specific member
-export const getMemberPath = async (req: Request, res: Response) => {
+export const getMemberPath = async (req: AuthRequest, res: Response) => {
   try {
-    const { userId } = req.params;
-
-    const path = [];
-    let currentUser = await db.findById('users', userId);
-    
-    if (!currentUser) {
-      return res.status(404).json({ message: 'User not found' });
+    const path: any[] = [];
+    let currentUser = await db.findById('users', req.params.userId);
+    if (!isApprovedMember(currentUser, req.user?.familyId)) return res.status(404).json({ message: 'User not found' });
+    while (currentUser && isApprovedMember(currentUser, req.user?.familyId)) {
+      const profile = sanitizeUserForViewer(currentUser, String(req.user?.id));
+      path.unshift({ _id: currentUser._id, firstName: profile.firstName, lastName: profile.lastName, generation: profile.generation });
+      const parentId = currentUser.fatherId || currentUser.motherId;
+      currentUser = parentId ? await db.findById('users', parentId) : null;
     }
-
-    // Traverse up to root
-    while (currentUser) {
-      path.unshift({
-        _id: currentUser._id,
-        firstName: currentUser.firstName,
-        lastName: currentUser.lastName,
-        generation: currentUser.generation,
-      });
-
-      // Move to parent (father takes precedence)
-      if (currentUser.fatherId) {
-        currentUser = await db.findById('users', currentUser.fatherId);
-      } else if (currentUser.motherId) {
-        currentUser = await db.findById('users', currentUser.motherId);
-      } else {
-        break;
-      }
-    }
-
-    res.json({
-      userId,
-      path,
-      totalGenerations: path.length,
-    });
+    res.json({ userId: req.params.userId, path, totalGenerations: path.length });
   } catch (error: any) {
-    console.error('Get member path error:', error);
     res.status(500).json({ message: 'Failed to get member path', error: error.message });
   }
 };
+
+function buildTreeStructure(users: any[]) {
+  const nodeMap = new Map<string, any>();
+  users.forEach((user) => nodeMap.set(String(user._id), { ...user, children: [], spouses: [] }));
+  for (const user of users) {
+    const node = nodeMap.get(String(user._id));
+    for (const parentId of [user.fatherId, user.motherId]) {
+      const parent = parentId && nodeMap.get(String(parentId));
+      if (parent && !parent.children.some((child: any) => String(child._id) === String(user._id))) parent.children.push(node);
+    }
+    const spouse = user.spouseId && nodeMap.get(String(user.spouseId));
+    if (spouse && !node.spouses.some((entry: any) => String(entry._id) === String(spouse._id))) node.spouses.push(spouse);
+  }
+  const parented = new Set<string>();
+  for (const user of users) {
+    if ((user.fatherId && nodeMap.has(String(user.fatherId))) || (user.motherId && nodeMap.has(String(user.motherId)))) parented.add(String(user._id));
+  }
+  const roots = users.filter((user) => !parented.has(String(user._id))).map((user) => nodeMap.get(String(user._id)));
+  return roots.length ? roots : users.map((user) => nodeMap.get(String(user._id)));
+}
+
+async function getImmediateFamily(user: any, familyId?: string, viewerId = '') {
+  const load = async (id?: string) => {
+    if (!id) return null;
+    const member = await db.findById('users', String(id));
+    return isApprovedMember(member, familyId) ? member : null;
+  };
+  const father = await load(user.fatherId);
+  const mother = await load(user.motherId);
+  const spouse = await load(user.spouseId);
+  const children = (await Promise.all((user.children || []).map((id: string) => load(id)))).filter(Boolean);
+  const parent = father || mother;
+  const siblings: any[] = [];
+  if (parent?.children) {
+    for (const siblingId of parent.children) {
+      if (String(siblingId) !== String(user._id)) {
+        const sibling = await load(siblingId);
+        if (sibling) siblings.push(sibling);
+      }
+    }
+  }
+  const safe = (member: any) => member ? sanitizeUserForViewer(member, viewerId) : null;
+  return { father: safe(father), mother: safe(mother), spouse: safe(spouse), children: children.map(safe), siblings: siblings.map(safe) };
+}
