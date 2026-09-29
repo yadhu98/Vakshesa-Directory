@@ -5,6 +5,7 @@ import jwt from 'jsonwebtoken';
 interface AuthenticatedWebSocket extends WebSocket {
   userId?: string;
   role?: string;
+  familyId?: string;
   isAlive?: boolean;
 }
 
@@ -26,7 +27,7 @@ class WebSocketService {
 
     console.log('🔌 WebSocket server initialized on /ws');
 
-    this.wss.on('connection', (ws: AuthenticatedWebSocket, req) => {
+    this.wss.on('connection', async (ws: AuthenticatedWebSocket, req) => {
       console.log('📱 New WebSocket connection attempt');
 
       // Extract token from query string
@@ -43,8 +44,15 @@ class WebSocketService {
         // Verify JWT token - use same secret as auth utility
         const jwtSecret = process.env.JWT_SECRET || 'secret';
         const decoded = jwt.verify(token, jwtSecret) as any;
-        ws.userId = decoded.id;
-        ws.role = decoded.role;
+        const { db } = await import('../config/storage');
+        const user = await db.findById('users', String(decoded.id));
+        if (!user || user.isActive === false || user.membershipStatus !== 'Approved') {
+          ws.close(1008, 'Approved account required');
+          return;
+        }
+        ws.userId = String(user._id);
+        ws.role = user.role;
+        ws.familyId = user.familyId;
         ws.isAlive = true;
 
         console.log(`✅ User ${ws.userId} (${ws.role}) connected via WebSocket`);
@@ -104,6 +112,12 @@ class WebSocketService {
 
     // Start heartbeat to detect dead connections
     this.startHeartbeat();
+  }
+
+  disconnectUser(userId: string) {
+    const userClients = this.clients.get(userId);
+    if (!userClients) return;
+    for (const client of userClients) client.close(1008, 'Account permissions changed; sign in again');
   }
 
   private startHeartbeat() {
@@ -194,11 +208,15 @@ class WebSocketService {
   }
 
   // Send leaderboard update to all users
-  notifyLeaderboardUpdate(leaderboard: any[]) {
-    this.broadcastToAll({
-      type: 'leaderboard',
-      data: leaderboard
-    });
+  notifyLeaderboardUpdate(leaderboard: any[], familyId?: string) {
+    let count = 0;
+    this.clients.forEach((clients) => clients.forEach((client) => {
+      if (familyId && client.familyId === familyId) {
+        this.sendToClient(client, { type: 'leaderboard', data: leaderboard });
+        count++;
+      }
+    }));
+    console.log(`📤 Sent leaderboard to ${count} connections in family ${familyId || '(none)'}`);
   }
 
   // Send stall stats update to admins and shopkeepers

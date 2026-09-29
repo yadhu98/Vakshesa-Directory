@@ -3,6 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.updateUserProfile = exports.validateUserCredentials = exports.createUser = void 0;
 const storage_1 = require("../config/storage");
 const auth_1 = require("../utils/auth");
+const User_1 = require("../models/User");
 const createUser = async (userData) => {
     // Check for existing email only if email is provided
     if (userData.email) {
@@ -18,6 +19,8 @@ const createUser = async (userData) => {
     const hashedPassword = await (0, auth_1.hashPassword)(userData.password);
     return storage_1.db.create('users', {
         ...userData,
+        membershipStatus: userData.membershipStatus || 'Approved',
+        privacySettings: { ...User_1.DEFAULT_PRIVACY_SETTINGS, ...(userData.privacySettings || {}) },
         password: hashedPassword,
     });
 };

@@ -16,6 +16,8 @@ import ChangePassword from '@pages/ChangePassword';
 import TokenRecharge from '@pages/TokenRecharge';
 import StallAudit from '@pages/StallAudit';
 import CarnivalAnalytics from '@pages/CarnivalAnalytics';
+import PendingRequests from '@pages/PendingRequests';
+import AccessManagement from '@pages/AccessManagement';
 
 const ProtectedRoute: React.FC<{ element: JSX.Element }> = ({ element }) => {
   const { isAuthenticated } = useAuth();
@@ -30,6 +32,8 @@ function App() {
         <Route path="/dashboard" element={<ProtectedRoute element={<Dashboard />} />} />
         <Route path="/register-user" element={<ProtectedRoute element={<RegisterUser />} />} />
         <Route path="/users" element={<ProtectedRoute element={<Users />} />} />
+        <Route path="/pending-requests" element={<ProtectedRoute element={<PendingRequests />} />} />
+        <Route path="/access-management" element={<ProtectedRoute element={<AccessManagement />} />} />
         <Route path="/families" element={<ProtectedRoute element={<Families />} />} />
         <Route path="/stalls" element={<ProtectedRoute element={<Stalls />} />} />
         <Route path="/leaderboard" element={<ProtectedRoute element={<Leaderboard />} />} />

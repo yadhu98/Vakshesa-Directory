@@ -42,9 +42,11 @@ export const authService = {
   },
   register: async (userData: any) => {
     const response = await axiosInstance.post('/auth/register', userData);
-    localStorage.setItem('authToken', response.data.token);
-    const normalizedUser = normalizeUser(response.data.user);
-    localStorage.setItem('userData', JSON.stringify(normalizedUser));
+    if (response.data.token) localStorage.setItem('authToken', response.data.token);
+    if (response.data.user) {
+      const normalizedUser = normalizeUser(response.data.user);
+      localStorage.setItem('userData', JSON.stringify(normalizedUser));
+    }
     return response.data;
   },
   logout: async () => {
@@ -52,9 +54,43 @@ export const authService = {
     localStorage.removeItem('userData');
   },
   getProfile: () => axiosInstance.get('/auth/profile'),
+  updatePrivacySettings: (privacySettings: Record<string, 'family' | 'private'>) =>
+    axiosInstance.put('/auth/privacy', { privacySettings }),
   changePassword: async (currentPassword: string, newPassword: string) => {
     return axiosInstance.put('/auth/change-password', { currentPassword, newPassword });
   },
+};
+
+// Current logged-in user helpers
+export const getCurrentUser = (): any => {
+  try {
+    const raw = localStorage.getItem('userData');
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+};
+
+export const isAdminUser = (user: any = getCurrentUser()): boolean =>
+  !!user && (user.role === 'admin' || user.isSuperUser === true);
+
+export const inviteService = {
+  createInvite: (payload?: { email?: string; relationshipNote?: string }) =>
+    axiosInstance.post('/invites/create', payload || {}),
+  validateInvite: (token: string) =>
+    axiosInstance.get(`/invites/validate/${token}`),
+  getMyInvites: () => axiosInstance.get('/invites/my-invites'),
+};
+
+export const adminService = {
+  getRegistrationRequests: (status: 'all' | 'Pending' | 'Approved' | 'Rejected' = 'Pending') =>
+    axiosInstance.get('/admin/registration-requests', { params: { status } }),
+  reviewRegistrationRequest: (requestId: string, action: 'approve' | 'reject', reason?: string) =>
+    axiosInstance.patch(`/admin/registration-requests/${requestId}/${action}`, { reason }),
+  setMemberRole: (userId: string, role: 'admin' | 'user') =>
+    axiosInstance.patch(`/admin/family-admins/${userId}`, { role }),
+  resetMemberPassword: (userId: string) =>
+    axiosInstance.patch(`/admin/family-members/${userId}/reset-password`),
 };
 
 export const userService = {

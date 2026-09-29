@@ -8,7 +8,9 @@ import EditProfileScreen from './screens/EditProfileScreen';
 import RegisterScreen from './screens/RegisterScreen';
 import ChangePasswordScreen from './screens/ChangePasswordScreen';
 import EnhancedProfileScreen from './screens/EnhancedProfileScreen';
+import AdminScreen from './screens/AdminScreen';
 import FooterNav from './components/FooterNav';
+import { isAdminUser } from './services/api';
 
 // Protected Route Component
 const ProtectedRoute: React.FC<{ children: React.ReactElement }> = ({ children }) => {
@@ -19,6 +21,15 @@ const ProtectedRoute: React.FC<{ children: React.ReactElement }> = ({ children }
     return <Navigate to="/" replace />;
   }
   
+  return children;
+};
+
+// Admin-only Route Component
+const AdminRoute: React.FC<{ children: React.ReactElement }> = ({ children }) => {
+  if (!isAdminUser()) {
+    return <Navigate to="/directory" replace />;
+  }
+
   return children;
 };
 
@@ -59,6 +70,17 @@ const AppRoutes: React.FC = () => {
             </ProtectedRoute>
           } 
         />
+        <Route
+          path="/admin"
+          element={
+            <ProtectedRoute>
+              <AdminRoute>
+                <AdminScreen />
+              </AdminRoute>
+            </ProtectedRoute>
+          }
+        />
+
         <Route 
           path="/profile/:userId" 
           element={

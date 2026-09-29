@@ -1,12 +1,14 @@
 
 
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Search, ChevronRight, Phone, Mail, UserPlus, Copy, Check, X } from 'feather-icons-react';
 import AppHeader from '../components/AppHeader';
-import { userService } from '../services/api';
-import axios from 'axios';
+import { userService, inviteService, isAdminUser } from '../services/api';
 
-const API_URL = process.env.REACT_APP_API_URL || 'https://vakshesa-directory.onrender.com/api';
+// Shared API base URL logic lives in services/api.ts — do not hardcode a
+// different default here or invites will hit production while auth hits local
+// (which surfaces as "Invalid token").
 
 type House = 'All' | 'Kadannamanna' | 'Ayiranazhi' | 'Aripra' | 'Mankada';
 
@@ -40,6 +42,8 @@ const colors = {
 };
 
 const DirectoryScreen: React.FC = () => {
+  const navigate = useNavigate();
+  const isAdmin = isAdminUser();
   const [members, setMembers] = useState<Member[]>([]);
   const [filteredMembers, setFilteredMembers] = useState<Member[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -50,6 +54,9 @@ const DirectoryScreen: React.FC = () => {
   const [inviteModalVisible, setInviteModalVisible] = useState(false);
   const [inviteLink, setInviteLink] = useState('');
   const [inviteCopied, setInviteCopied] = useState(false);
+  const [relationshipNote, setRelationshipNote] = useState('');
+  const [relationshipError, setRelationshipError] = useState('');
+  const [inviteCreating, setInviteCreating] = useState(false);
 
   const houses: House[] = ['All', 'Kadannamanna', 'Mankada', 'Ayiranazhi', 'Aripra'];
 
@@ -112,24 +119,36 @@ const DirectoryScreen: React.FC = () => {
     setModalVisible(true);
   };
 
+  const openInviteModal = () => {
+    const token = localStorage.getItem('authToken');
+    if (!token) {
+      alert('Please log in to generate invite links.');
+      return;
+    }
+    setRelationshipNote('');
+    setRelationshipError('');
+    setInviteLink('');
+    setInviteCopied(false);
+    setInviteModalVisible(true);
+  };
+
   const generateInviteLink = async () => {
+    const note = relationshipNote.trim();
+    if (!note) {
+      setRelationshipError('Please explain the relationship of the invitee with Vakshesa.');
+      return;
+    }
+    setRelationshipError('');
+    setInviteCreating(true);
     try {
-      const token = localStorage.getItem('authToken');
-      if (!token) {
-        alert('Please log in to generate invite links.');
-        return;
-      }
-      const response = await axios.post(
-        `${API_URL}/invites/create`,
-        {},
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      const response = await inviteService.createInvite({ relationshipNote: note });
       setInviteLink(response.data.inviteLink);
-      setInviteModalVisible(true);
     } catch (error: any) {
       console.error('Failed to generate invite:', error);
       const errorMessage = error?.response?.data?.message || 'Failed to generate invite link. Please try again.';
       alert(errorMessage);
+    } finally {
+      setInviteCreating(false);
     }
   };
 
@@ -150,7 +169,7 @@ const DirectoryScreen: React.FC = () => {
       <AppHeader 
         title="Directory" 
         showInviteButton={true}
-        onInvite={generateInviteLink}
+        onInvite={openInviteModal}
       />
       <div style={{ padding: '16px' }}>
         <div style={{ display: 'flex', alignItems: 'center', background: colors.white, borderRadius: 8, border: `1px solid ${colors.gray.border}`, marginBottom: 16, padding: '0 12px' }}>
@@ -295,6 +314,14 @@ const DirectoryScreen: React.FC = () => {
               <div style={{ fontWeight: 700, fontSize: 20, color: colors.primary, marginBottom: 4 }}>{selectedMember.firstName} {selectedMember.lastName}</div>
               <div style={{ fontSize: 14, color: '#666', marginBottom: 8 }}>{selectedMember.email}</div>
               <div style={{ fontSize: 13, color: '#999', marginBottom: 8 }}>{selectedMember.role ? selectedMember.role.charAt(0).toUpperCase() + selectedMember.role.slice(1) : 'Member'}</div>
+              {isAdmin && (
+                <button
+                  onClick={() => { setModalVisible(false); navigate(`/profile/${selectedMember._id}`); }}
+                  style={{ marginTop: 4, padding: '8px 14px', borderRadius: 8, border: '1px solid #000', background: '#fff', color: '#000', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
+                >
+                  Open full profile
+                </button>
+              )}
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 16 }}>
               {selectedMember.phone && <div style={{ fontSize: 14, color: '#333' }}>📞 {selectedMember.phone}</div>}
@@ -374,94 +401,143 @@ const DirectoryScreen: React.FC = () => {
             <p style={{ color: colors.gray.dark, fontSize: 14, marginBottom: 16 }}>
               Share this link with someone you'd like to invite to the Vakshesa Directory. The link is valid for 7 days.
             </p>
-            <div style={{ 
-              background: colors.gray.light, 
-              padding: 12, 
-              borderRadius: 8, 
-              border: `1px solid ${colors.gray.border}`,
-              marginBottom: 16,
-              wordBreak: 'break-all',
-              fontSize: 13,
-              color: colors.gray.dark,
-            }}>
-              {inviteLink}
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              <button 
-                onClick={shareOnWhatsApp} 
-                style={{ 
+            <p style={{ color: '#C62828', fontSize: 13, fontWeight: 600, margin: '0 0 8px' }}>
+              Kindly explain relationship of the invitee with Vakshesa - this will help our admins vet who has access to this directory *
+            </p>
+            <textarea
+              value={relationshipNote}
+              onChange={(e) => { setRelationshipNote(e.target.value); if (relationshipError) setRelationshipError(''); }}
+              placeholder="e.g. My cousin, son of ..."
+              rows={3}
+              style={{
+                width: '100%',
+                boxSizing: 'border-box',
+                padding: 12,
+                borderRadius: 8,
+                border: `1px solid ${relationshipError ? '#C62828' : colors.gray.border}`,
+                fontSize: 14,
+                marginBottom: 4,
+                resize: 'vertical',
+              }}
+            />
+            {relationshipError && (
+              <p style={{ color: '#C62828', fontSize: 12, margin: '0 0 8px' }}>{relationshipError}</p>
+            )}
+            {!inviteLink ? (
+              <button
+                onClick={generateInviteLink}
+                disabled={inviteCreating}
+                style={{
                   width: '100%',
-                  padding: '12px 0', 
-                  borderRadius: 8, 
-                  border: 'none', 
-                  background: '#25D366', 
-                  color: colors.white, 
-                  fontWeight: 600, 
-                  fontSize: 15, 
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: 8,
+                  padding: '12px 0',
+                  borderRadius: 8,
+                  border: 'none',
+                  background: inviteCreating ? colors.gray.border : colors.primary,
+                  color: colors.white,
+                  fontWeight: 600,
+                  fontSize: 15,
+                  cursor: inviteCreating ? 'not-allowed' : 'pointer',
+                  marginBottom: 16,
                 }}
               >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z" fill="currentColor"/>
-                </svg>
-                Share on WhatsApp
+                {inviteCreating ? 'Generating...' : 'Generate Invite Link'}
               </button>
-              <div style={{ display: 'flex', gap: 8 }}>
-                <button 
-                  onClick={() => {
-                    setInviteModalVisible(false);
-                    setInviteCopied(false);
-                  }} 
-                  style={{ 
-                    flex: 1, 
-                    padding: '12px 0', 
-                    borderRadius: 8, 
-                    border: `1px solid ${colors.gray.border}`, 
-                    background: colors.white, 
-                    color: colors.primary, 
-                    fontWeight: 600, 
-                    fontSize: 15, 
-                    cursor: 'pointer' 
-                  }}
-                >
-                  Close
-                </button>
-                <button 
-                  onClick={copyInviteLink} 
-                  style={{ 
-                    flex: 1, 
-                    padding: '12px 0', 
-                    borderRadius: 8, 
-                    border: 'none', 
-                    background: colors.primary, 
-                    color: colors.white, 
-                    fontWeight: 600, 
-                    fontSize: 15, 
+            ) : (
+              <div style={{
+                background: colors.gray.light,
+                padding: 12,
+                borderRadius: 8,
+                border: `1px solid ${colors.gray.border}`,
+                marginBottom: 16,
+                wordBreak: 'break-all',
+                fontSize: 13,
+                color: colors.gray.dark,
+              }}>
+                {inviteLink}
+              </div>
+            )}
+            {inviteLink && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <button
+                  onClick={shareOnWhatsApp}
+                  style={{
+                    width: '100%',
+                    padding: '12px 0',
+                    borderRadius: 8,
+                    border: 'none',
+                    background: '#25D366',
+                    color: colors.white,
+                    fontWeight: 600,
+                    fontSize: 15,
                     cursor: 'pointer',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    gap: 6,
+                    gap: 8,
                   }}
                 >
-                  {inviteCopied ? (
-                    <>
-                      <Check size={18} />
-                      Copied!
-                    </>
-                  ) : (
-                    <>
-                      <Copy size={18} />
-                      Copy Link
-                    </>
-                  )}
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z" fill="currentColor"/>
+                  </svg>
+                  Share on WhatsApp
                 </button>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button
+                    onClick={() => {
+                      setInviteModalVisible(false);
+                      setInviteCopied(false);
+                      setInviteLink('');
+                      setRelationshipNote('');
+                      setRelationshipError('');
+                      setInviteCreating(false);
+                    }}
+                    style={{
+                      flex: 1,
+                      padding: '12px 0',
+                      borderRadius: 8,
+                      border: `1px solid ${colors.gray.border}`,
+                      background: colors.white,
+                      color: colors.primary,
+                      fontWeight: 600,
+                      fontSize: 15,
+                      cursor: 'pointer'
+                    }}
+                  >
+                    Close
+                  </button>
+                  <button
+                    onClick={copyInviteLink}
+                    style={{
+                      flex: 1,
+                      padding: '12px 0',
+                      borderRadius: 8,
+                      border: 'none',
+                      background: colors.primary,
+                      color: colors.white,
+                      fontWeight: 600,
+                      fontSize: 15,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: 6,
+                    }}
+                  >
+                    {inviteCopied ? (
+                      <>
+                        <Check size={18} />
+                        Copied!
+                      </>
+                    ) : (
+                      <>
+                        <Copy size={18} />
+                        Copy Link
+                      </>
+                    )}
+                  </button>
+                </div>
               </div>
-            </div>
+            )}
           </div>
         </div>
       )}

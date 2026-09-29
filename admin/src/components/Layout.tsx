@@ -16,7 +16,9 @@ import {
   DollarSign, 
   FileText, 
   Settings, 
-  Lock 
+  Lock,
+  ClipboardCheck,
+  ShieldCheck,
 } from 'lucide-react';
 
 export const Layout: React.FC<{ children: ReactNode }> = ({ children }) => {
@@ -43,6 +45,18 @@ export const Layout: React.FC<{ children: ReactNode }> = ({ children }) => {
             label="Users"
             icon={<Users size={20} />}
             onClick={() => navigate('/users')}
+            collapsed={!isSidebarOpen}
+          />
+          <NavItem
+            label="Pending Requests"
+            icon={<ClipboardCheck size={20} />}
+            onClick={() => navigate('/pending-requests')}
+            collapsed={!isSidebarOpen}
+          />
+          <NavItem
+            label="Access Management"
+            icon={<ShieldCheck size={20} />}
+            onClick={() => navigate('/access-management')}
             collapsed={!isSidebarOpen}
           />
           <NavItem

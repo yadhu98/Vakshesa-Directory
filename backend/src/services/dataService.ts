@@ -1,4 +1,5 @@
 import { db } from '../config/storage';
+import { sanitizeUserForViewer } from './profilePrivacy';
 
 export const getUserById = async (id: string) => {
   const user = await db.findById('users', id);
@@ -37,13 +38,19 @@ export const buildFamilyTreeStructure = (nodes: any[]): Record<string, any> => {
   return tree;
 };
 
-export const getLeaderboard = async (limit: number = 100): Promise<any[]> => {
+export const getLeaderboard = async (limit: number = 100, familyId?: string, viewerId?: string): Promise<any[]> => {
+  if (!familyId) return [];
   const allPoints = await db.find('points', {});
   const pointsByUser: Record<string, any> = {};
 
   for (const point of allPoints) {
     if (!pointsByUser[point.userId]) {
       const user = await db.findById('users', point.userId);
+      if (user && (
+        user.familyId !== familyId ||
+        user.isActive === false ||
+        user.membershipStatus !== 'Approved'
+      )) continue;
       pointsByUser[point.userId] = {
         _id: point.userId,
         totalPoints: 0,
@@ -55,31 +62,38 @@ export const getLeaderboard = async (limit: number = 100): Promise<any[]> => {
 
   return Object.values(pointsByUser)
     .sort((a: any, b: any) => b.totalPoints - a.totalPoints)
-    .slice(0, limit)
-    .map((item: any, index: number) => ({
+    .slice(0, Math.min(Math.max(limit, 1), 1000))
+    .map((item: any, index: number) => {
+      const profile = item.user ? sanitizeUserForViewer(item.user, String(viewerId || '')) : null;
+      const visibleName = profile ? `${profile.firstName || ''} ${profile.lastName || ''}`.trim() : '';
+      return {
       rank: index + 1,
       userId: item._id,
-      userName: item.user ? `${item.user.firstName} ${item.user.lastName}` : 'Unknown',
+      userName: visibleName || 'Family member',
       totalPoints: item.totalPoints,
-      profilePicture: item.user?.profilePicture,
-    }));
+      profilePicture: profile?.profilePicture,
+      };
+    });
 };
 
-export const searchUsers = async (query: string, limit: number = 20) => {
+export const searchUsers = async (query: string, limit: number = 20, familyId?: string, viewerId?: string) => {
+  if (!familyId) return [];
   const allUsers = await db.find('users', {});
-  let filtered;
+  let filtered = allUsers.filter((u) =>
+    u.familyId === familyId &&
+    u.isActive !== false &&
+    u.membershipStatus === 'Approved'
+  );
   if (!query || query.trim() === '') {
-    filtered = allUsers;
+    // Keep only approved members from the caller's family.
   } else {
-    filtered = allUsers.filter((u) => {
-      const fullName = `${u.firstName} ${u.lastName}`.toLowerCase();
-      const email = u.email?.toLowerCase() || '';
-      return fullName.includes(query.toLowerCase()) || email.includes(query.toLowerCase());
+    filtered = filtered.filter((u) => {
+      const profile = sanitizeUserForViewer(u, String(viewerId || ''));
+      const fullName = `${profile.firstName || ''} ${profile.lastName || ''}`.toLowerCase();
+      return fullName.includes(query.toLowerCase());
     });
   }
-  return filtered.slice(0, limit).map((u) => {
-    const { password, ...userWithoutPassword } = u;
-    return userWithoutPassword;
-  });
+  const safeLimit = Number.isFinite(limit) ? Math.min(Math.max(limit, 1), 1000) : 20;
+  return filtered.slice(0, safeLimit).map((u) => sanitizeUserForViewer(u, String(viewerId || '')));
 };
 

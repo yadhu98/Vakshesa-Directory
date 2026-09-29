@@ -2,6 +2,7 @@ import { Response } from 'express';
 import { AuthRequest } from '../middleware/auth';
 import { db } from '../config/storage';
 import { createUser } from '../services/userService';
+import { recordAuditEvent } from '../services/auditService';
 
 export const togglePhase2 = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
@@ -123,27 +124,27 @@ export const cleanupNonSuperAdminUsers = async (req: AuthRequest, res: Response)
       return;
     }
 
-    const superAdminEmail = 'admin@vakshesa.com';
-
-    // Get count before deletion
-    const allUsersBefore = await db.find('users', {});
-    const countBefore = allUsersBefore.length;
-
-    // Delete all users except Super Admin
-    const result = await db.deleteMany('users', { email: { $ne: superAdminEmail } });
-
-    // Get remaining users
-    const remainingUsers = await db.find('users', {});
+    const familyId = req.user.familyId;
+    if (!familyId) {
+      res.status(400).json({ message: 'Super admin is not associated with a family' });
+      return;
+    }
+    const familyUsers = await db.find('users', { familyId });
+    const usersToDelete = familyUsers.filter((user: any) => user.role !== 'admin' && !user.isSuperUser);
+    for (const user of usersToDelete) {
+      await db.deleteOne('users', { _id: user._id, familyId });
+    }
+    const remainingUsers = await db.find('users', { familyId });
 
     res.json({
       message: 'Cleanup completed successfully',
       stats: {
-        usersBeforeCleanup: countBefore,
-        deletedCount: result.deletedCount,
+        usersBeforeCleanup: familyUsers.length,
+        deletedCount: usersToDelete.length,
         remainingUsers: remainingUsers.length,
         keptUser: remainingUsers[0] ? `${remainingUsers[0].firstName} ${remainingUsers[0].lastName} (${remainingUsers[0].email})` : 'None'
       },
-      note: 'Super Admin is excluded from family tree. Only Super Admin is kept.',
+      note: 'Cleanup only affects regular members in this family; all administrators and other families are retained.',
     });
   } catch (error: any) {
     res.status(500).json({ message: 'Error during cleanup', error: error.message });
@@ -159,29 +160,40 @@ export const createUserByAdmin = async (req: AuthRequest, res: Response): Promis
       return;
     }
 
-    const { firstName, lastName, email, phone, password, role, house, gender, generation, address, profession } = req.body;
+    const { firstName, lastName, email, phone, password, house, gender, generation, address, profession } = req.body;
 
     if (!firstName || !email || !phone || !password || !house) {
       res.status(400).json({ message: 'Missing required fields' });
       return;
     }
 
+    if (!req.user?.familyId) {
+      res.status(400).json({ message: 'The admin account is not associated with a family' });
+      return;
+    }
     const user = await createUser({
       firstName,
       lastName: lastName || '',
       email: email.toLowerCase(),
       phone,
       password,
-      role: role || 'user',
+      role: 'user',
+      membershipStatus: 'Approved',
+      isSuperUser: false,
       house,
       gender: gender || 'male',
       generation: generation || 1,
       address: address || '',
       profession: profession || '',
-      familyId: 'family-default',
+      familyId: req.user.familyId,
     });
 
-    const { password: _, ...safeUser } = user;
+    await recordAuditEvent(String(req.user.id), String(req.user.role), 'user_created_by_admin', String(user._id), {
+      familyId: req.user.familyId,
+    });
+
+    const { sanitizeUserForViewer } = await import('../services/profilePrivacy');
+    const safeUser = sanitizeUserForViewer(user, String(req.user.id));
 
     res.status(201).json({
       message: 'User created successfully by admin',

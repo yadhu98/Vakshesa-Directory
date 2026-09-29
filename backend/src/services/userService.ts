@@ -1,5 +1,6 @@
 import { db } from '../config/storage';
 import { hashPassword, comparePassword } from '../utils/auth';
+import { DEFAULT_PRIVACY_SETTINGS } from '../models/User';
 
 export const createUser = async (userData: any) => {
   // Check for existing email only if email is provided
@@ -19,6 +20,8 @@ export const createUser = async (userData: any) => {
 
   return db.create('users', {
     ...userData,
+    membershipStatus: userData.membershipStatus || 'Approved',
+    privacySettings: { ...DEFAULT_PRIVACY_SETTINGS, ...(userData.privacySettings || {}) },
     password: hashedPassword,
   });
 };

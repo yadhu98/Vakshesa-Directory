@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import AppHeader from '../components/AppHeader';
 import { userService } from '../services/api';
+import { authService } from '../services/api';
 import ImageCropper from '../components/ImageCropper';
 import { Camera } from 'feather-icons-react';
 
@@ -21,10 +22,19 @@ interface EditForm {
   profilePicture?: string;
 }
 
+// The privacy-controlled fields exposed on this form, and whether each starts out
+// private when the user has never chosen a value. Mirrors the backend defaults.
+const PRIVATE_BY_DEFAULT: Record<string, boolean> = {
+  profilePicture: false, email: true, phone: true, countryCode: true, address: true,
+  occupation: false, linkedin: true, instagram: true, facebook: true,
+};
+
 const EditProfileScreen: React.FC = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState<boolean>(true);
   const [saving, setSaving] = useState<boolean>(false);
+  const [privacyDirty, setPrivacyDirty] = useState(false);
+  const [privacySettings, setPrivacySettings] = useState<Record<string, 'family' | 'private'>>({});
   const [imageSrc, setImageSrc] = useState<string | null>(null);
   const [showCropper, setShowCropper] = useState(false);
   const [form, setForm] = useState<EditForm>({
@@ -65,6 +75,14 @@ const EditProfileScreen: React.FC = () => {
         
         const res = await userService.getUserProfile(userId);
         const user = res?.data || {};
+        setPrivacySettings(user.privacySettings || {
+          email: 'private', phone: 'private', countryCode: 'private', dateOfBirth: 'private',
+          gender: 'private', address: 'private', notes: 'private', linkedin: 'private',
+          instagram: 'private', facebook: 'private', marriageDate: 'private', deathDate: 'private',
+          firstName: 'family', lastName: 'family', profilePicture: 'family', house: 'family',
+          occupation: 'family', generation: 'family', isAlive: 'family', fatherId: 'family',
+          motherId: 'family', spouseId: 'family', children: 'family',
+        });
         
         setForm({
           firstName: user.firstName || '',
@@ -112,6 +130,18 @@ const EditProfileScreen: React.FC = () => {
         window.dispatchEvent(new Event('profileUpdated'));
       }
       
+      if (privacyDirty) {
+        const allowed: Record<string, 'family' | 'private'> = {};
+        Object.keys(PRIVATE_BY_DEFAULT).forEach(key => {
+          if (privacySettings[key]) allowed[key] = privacySettings[key];
+        });
+        // These four have no pvt checkbox, so they are always shared with the family.
+        ['firstName', 'lastName', 'house', 'gender'].forEach(key => { allowed[key] = 'family'; });
+        const privacyResponse = await authService.updatePrivacySettings(allowed);
+        setPrivacySettings(privacyResponse.data.privacySettings);
+        setPrivacyDirty(false);
+      }
+
       alert('Profile updated successfully!');
       
       // Navigate to directory to show updated profile
@@ -124,6 +154,58 @@ const EditProfileScreen: React.FC = () => {
       setSaving(false);
     }
   };
+
+  // Privacy: a ticked "pvt" box means the field is hidden from other family members.
+  const isPrivate = (field: string) => privacySettings[field]
+    ? privacySettings[field] === 'private'
+    : (PRIVATE_BY_DEFAULT[field] ?? true);
+
+  const togglePrivate = (field: string, extraFields: string[] = []) => {
+    setPrivacySettings(current => {
+      const next = { ...current };
+      [field, ...extraFields].forEach(key => {
+        const currentlyPrivate = current[key] ? current[key] === 'private' : (PRIVATE_BY_DEFAULT[key] ?? true);
+        next[key] = currentlyPrivate ? 'family' : 'private';
+      });
+      return next;
+    });
+    setPrivacyDirty(true);
+  };
+
+  const renderPvt = (field: string, title: string, extraFields: string[] = []) => (
+    <label
+      title={isPrivate(field)
+        ? title + ' is private. Untick pvt to share it with other family members.'
+        : title + ' is visible to family members. Tick pvt to hide it.'}
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 4,
+        fontSize: 12,
+        color: isPrivate(field) ? '#000' : '#999',
+        whiteSpace: 'nowrap',
+        cursor: 'pointer',
+        userSelect: 'none' as const,
+        flexShrink: 0,
+      }}
+    >
+      <input
+        type="checkbox"
+        checked={isPrivate(field)}
+        onChange={() => togglePrivate(field, extraFields)}
+        style={{ width: 16, height: 16, accentColor: '#000', cursor: 'pointer', margin: 0 }}
+      />
+      pvt
+    </label>
+  );
+
+  const pvtRowStyle: React.CSSProperties = {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 12,
+  };
+
 
   const inputStyle: React.CSSProperties = {
     width: '100%',
@@ -195,6 +277,9 @@ const EditProfileScreen: React.FC = () => {
         ) : (
           <form onSubmit={e => { e.preventDefault(); handleSave(); }}>
             <div style={sectionTitleStyle}>Personal Information</div>
+            <p style={{ color: '#666', fontSize: 13, lineHeight: 1.5, marginTop: -4, marginBottom: 12 }}>
+              Tick <strong>pvt</strong> beside a field to hide it from other family members. Everything is saved together.
+            </p>
             
             {/* Profile Picture */}
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: 20 }}>
@@ -257,8 +342,9 @@ const EditProfileScreen: React.FC = () => {
                   style={{ display: 'none' }}
                 />
               </div>
-              <div style={{ fontSize: 12, color: '#999', marginTop: 8, textAlign: 'center' }}>
-                Click camera icon to upload photo
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, marginTop: 8 }}>
+                <span style={{ fontSize: 12, color: '#999' }}>Click camera icon to upload photo</span>
+                {renderPvt('profilePicture', 'Profile photo')}
               </div>
             </div>
             
@@ -280,15 +366,18 @@ const EditProfileScreen: React.FC = () => {
               onChange={handleChange}
               required
             />
-            <input
-              style={inputStyle}
-              type="email"
-              name="email"
-              placeholder="Email"
-              value={form.email}
-              onChange={handleChange}
-            />
-            
+            <div style={pvtRowStyle}>
+              <input
+                style={{ ...inputStyle, marginBottom: 0, flex: 1 }}
+                type="email"
+                name="email"
+                placeholder="Email"
+                value={form.email}
+                onChange={handleChange}
+              />
+              {renderPvt('email', 'Email')}
+            </div>
+
             <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
               <select
                 name="countryCode"
@@ -356,6 +445,7 @@ const EditProfileScreen: React.FC = () => {
                 onChange={handleChange}
                 required
               />
+              {renderPvt('phone', 'Phone number', ['countryCode'])}
             </div>
 
             <div style={labelStyle}>Gender *</div>
@@ -390,48 +480,67 @@ const EditProfileScreen: React.FC = () => {
               <option value="Aripra">Aripra</option>
             </select>
 
-            <textarea
-              style={{ ...inputStyle, minHeight: 80, fontFamily: 'inherit' }}
-              name="address"
-              placeholder="Address"
-              value={form.address}
-              onChange={handleChange as any}
-            />
+            <div style={{ ...pvtRowStyle, alignItems: 'flex-start' }}>
+              <textarea
+                style={{ ...inputStyle, marginBottom: 0, minHeight: 80, fontFamily: 'inherit', flex: 1 }}
+                name="address"
+                placeholder="Address"
+                value={form.address}
+                onChange={handleChange as any}
+              />
+              {renderPvt('address', 'Address')}
+            </div>
 
-            <input
-              style={inputStyle}
-              type="text"
-              name="occupation"
-              placeholder="Profession"
-              value={form.occupation}
-              onChange={handleChange}
-            />
+            <div style={pvtRowStyle}>
+              <input
+                style={{ ...inputStyle, marginBottom: 0, flex: 1 }}
+                type="text"
+                name="occupation"
+                placeholder="Profession"
+                value={form.occupation}
+                onChange={handleChange}
+              />
+              {renderPvt('occupation', 'Profession')}
+            </div>
 
             <div style={labelStyle}>Social Media Links</div>
-            <input
-              style={inputStyle}
-              type="url"
-              name="linkedin"
-              placeholder="LinkedIn Profile URL (optional)"
-              value={form.linkedin}
-              onChange={handleChange}
-            />
-            <input
-              style={inputStyle}
-              type="url"
-              name="instagram"
-              placeholder="Instagram Profile URL (optional)"
-              value={form.instagram}
-              onChange={handleChange}
-            />
-            <input
-              style={inputStyle}
-              type="url"
-              name="facebook"
-              placeholder="Facebook Profile URL (optional)"
-              value={form.facebook}
-              onChange={handleChange}
-            />
+            <div style={pvtRowStyle}>
+              <input
+                style={{ ...inputStyle, marginBottom: 0, flex: 1 }}
+                type="url"
+                name="linkedin"
+                placeholder="LinkedIn Profile URL (optional)"
+                value={form.linkedin}
+                onChange={handleChange}
+              />
+              {renderPvt('linkedin', 'LinkedIn')}
+            </div>
+            <div style={pvtRowStyle}>
+              <input
+                style={{ ...inputStyle, marginBottom: 0, flex: 1 }}
+                type="url"
+                name="instagram"
+                placeholder="Instagram Profile URL (optional)"
+                value={form.instagram}
+                onChange={handleChange}
+              />
+              {renderPvt('instagram', 'Instagram')}
+            </div>
+            <div style={pvtRowStyle}>
+              <input
+                style={{ ...inputStyle, marginBottom: 0, flex: 1 }}
+                type="url"
+                name="facebook"
+                placeholder="Facebook Profile URL (optional)"
+                value={form.facebook}
+                onChange={handleChange}
+              />
+              {renderPvt('facebook', 'Facebook')}
+            </div>
+
+            {privacyDirty && (
+              <p style={{ color: '#B26A00', fontSize: 13, marginTop: 12 }}>You have unsaved privacy changes. Press Save Changes to apply them.</p>
+            )}
 
             <button
               style={{

@@ -2,6 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.searchUsers = exports.getLeaderboard = exports.buildFamilyTreeStructure = exports.getFamilyTree = exports.getFamilyById = exports.getUserById = void 0;
 const storage_1 = require("../config/storage");
+const profilePrivacy_1 = require("./profilePrivacy");
 const getUserById = async (id) => {
     const user = await storage_1.db.findById('users', id);
     if (!user)
@@ -38,12 +39,18 @@ const buildFamilyTreeStructure = (nodes) => {
     return tree;
 };
 exports.buildFamilyTreeStructure = buildFamilyTreeStructure;
-const getLeaderboard = async (limit = 100) => {
+const getLeaderboard = async (limit = 100, familyId, viewerId) => {
+    if (!familyId)
+        return [];
     const allPoints = await storage_1.db.find('points', {});
     const pointsByUser = {};
     for (const point of allPoints) {
         if (!pointsByUser[point.userId]) {
             const user = await storage_1.db.findById('users', point.userId);
+            if (user && (user.familyId !== familyId ||
+                user.isActive === false ||
+                user.membershipStatus !== 'Approved'))
+                continue;
             pointsByUser[point.userId] = {
                 _id: point.userId,
                 totalPoints: 0,
@@ -54,32 +61,38 @@ const getLeaderboard = async (limit = 100) => {
     }
     return Object.values(pointsByUser)
         .sort((a, b) => b.totalPoints - a.totalPoints)
-        .slice(0, limit)
-        .map((item, index) => ({
-        rank: index + 1,
-        userId: item._id,
-        userName: item.user ? `${item.user.firstName} ${item.user.lastName}` : 'Unknown',
-        totalPoints: item.totalPoints,
-        profilePicture: item.user?.profilePicture,
-    }));
+        .slice(0, Math.min(Math.max(limit, 1), 1000))
+        .map((item, index) => {
+        const profile = item.user ? (0, profilePrivacy_1.sanitizeUserForViewer)(item.user, String(viewerId || '')) : null;
+        const visibleName = profile ? `${profile.firstName || ''} ${profile.lastName || ''}`.trim() : '';
+        return {
+            rank: index + 1,
+            userId: item._id,
+            userName: visibleName || 'Family member',
+            totalPoints: item.totalPoints,
+            profilePicture: profile?.profilePicture,
+        };
+    });
 };
 exports.getLeaderboard = getLeaderboard;
-const searchUsers = async (query, limit = 20) => {
+const searchUsers = async (query, limit = 20, familyId, viewerId) => {
+    if (!familyId)
+        return [];
     const allUsers = await storage_1.db.find('users', {});
-    let filtered;
+    let filtered = allUsers.filter((u) => u.familyId === familyId &&
+        u.isActive !== false &&
+        u.membershipStatus === 'Approved');
     if (!query || query.trim() === '') {
-        filtered = allUsers;
+        // Keep only approved members from the caller's family.
     }
     else {
-        filtered = allUsers.filter((u) => {
-            const fullName = `${u.firstName} ${u.lastName}`.toLowerCase();
-            const email = u.email?.toLowerCase() || '';
-            return fullName.includes(query.toLowerCase()) || email.includes(query.toLowerCase());
+        filtered = filtered.filter((u) => {
+            const profile = (0, profilePrivacy_1.sanitizeUserForViewer)(u, String(viewerId || ''));
+            const fullName = `${profile.firstName || ''} ${profile.lastName || ''}`.toLowerCase();
+            return fullName.includes(query.toLowerCase());
         });
     }
-    return filtered.slice(0, limit).map((u) => {
-        const { password, ...userWithoutPassword } = u;
-        return userWithoutPassword;
-    });
+    const safeLimit = Number.isFinite(limit) ? Math.min(Math.max(limit, 1), 1000) : 20;
+    return filtered.slice(0, safeLimit).map((u) => (0, profilePrivacy_1.sanitizeUserForViewer)(u, String(viewerId || '')));
 };
 exports.searchUsers = searchUsers;

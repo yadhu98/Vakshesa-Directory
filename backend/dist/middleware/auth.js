@@ -5,7 +5,8 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.errorHandler = exports.shopkeeperMiddleware = exports.adminMiddleware = exports.authMiddleware = void 0;
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
-const authMiddleware = (req, res, next) => {
+const storage_1 = require("../config/storage");
+const authMiddleware = async (req, res, next) => {
     try {
         const token = req.headers.authorization?.split(' ')[1];
         if (!token) {
@@ -13,7 +14,29 @@ const authMiddleware = (req, res, next) => {
             return;
         }
         const decoded = jsonwebtoken_1.default.verify(token, process.env.JWT_SECRET || 'secret');
-        req.user = { id: decoded.id, role: decoded.role, isSuperUser: decoded.isSuperUser || false };
+        const user = await storage_1.db.findById('users', String(decoded.id));
+        if (!user || user.isActive === false) {
+            res.status(401).json({ message: 'Account is unavailable' });
+            return;
+        }
+        if (user.membershipStatus === 'Pending') {
+            res.status(403).json({ code: 'MEMBERSHIP_PENDING', message: 'Your registration is waiting for admin approval' });
+            return;
+        }
+        if (user.membershipStatus === 'Rejected') {
+            res.status(403).json({ code: 'MEMBERSHIP_REJECTED', message: user.membershipRejectionReason || 'Your registration was rejected' });
+            return;
+        }
+        if (user.membershipStatus !== 'Approved') {
+            res.status(403).json({ message: 'Account approval is required to access this service' });
+            return;
+        }
+        req.user = {
+            id: String(user._id),
+            role: user.role,
+            isSuperUser: !!user.isSuperUser,
+            familyId: user.familyId,
+        };
         next();
     }
     catch (error) {

@@ -1,7 +1,8 @@
-import { Request, Response } from 'express';
+import { Response } from 'express';
+import { AuthRequest } from '../middleware/auth';
 import { db } from '../config/storage';
 
-export const createFamily = async (req: Request, res: Response): Promise<void> => {
+export const createFamily = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const { name, description } = req.body;
     if (!name) {
@@ -32,10 +33,10 @@ export const createFamily = async (req: Request, res: Response): Promise<void> =
   }
 };
 
-export const listFamilies = async (_req: Request, res: Response): Promise<void> => {
+export const listFamilies = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const families = await db.find('families', {});
-    res.json({ families });
+    const family = req.user?.familyId ? await db.findById('families', req.user.familyId) : null;
+    res.json({ families: family ? [family] : [] });
   } catch (error: any) {
     res.status(500).json({ message: error.message });
   }

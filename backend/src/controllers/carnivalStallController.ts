@@ -386,8 +386,8 @@ export const awardPoints = async (req: Request, res: Response) => {
     }
 
     // Get updated leaderboard and broadcast
-    const leaderboard = await getLeaderboard(100);
-    wsService.notifyLeaderboardUpdate(leaderboard);
+    const leaderboard = await getLeaderboard(100, (req as any).user?.familyId, (req as any).user?.id);
+    wsService.notifyLeaderboardUpdate(leaderboard, (req as any).user?.familyId);
 
     const totalRecipients = isStageProgram && groupMembers.length > 0 ? 1 + groupMembers.length : 1;
     res.json({

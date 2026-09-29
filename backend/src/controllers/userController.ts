@@ -1,18 +1,21 @@
 import { Response } from 'express';
 import { AuthRequest } from '../middleware/auth';
-import { getUserById, getFamilyTree, buildFamilyTreeStructure, searchUsers, getLeaderboard } from '../services/dataService';
+import { getFamilyTree, buildFamilyTreeStructure, searchUsers, getLeaderboard } from '../services/dataService';
+import { db } from '../config/storage';
+import { sanitizeUserForViewer } from '../services/profilePrivacy';
+import { wsService } from '../services/websocket';
 
 export const getUserProfile = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const { userId } = req.params;
-    const user = await getUserById(userId);
+    const user = await db.findById('users', userId);
 
-    if (!user) {
+    if (!user || user.familyId !== req.user?.familyId || user.isActive === false || user.membershipStatus !== 'Approved') {
       res.status(404).json({ message: 'User not found' });
       return;
     }
 
-    res.json(user);
+    res.json(sanitizeUserForViewer(user, String(req.user?.id)));
   } catch (error: any) {
     res.status(500).json({ message: error.message });
   }
@@ -21,7 +24,15 @@ export const getUserProfile = async (req: AuthRequest, res: Response): Promise<v
 export const getFamilyTreeStructure = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const { familyId } = req.params;
-    const nodes = await getFamilyTree(familyId);
+    if (familyId !== req.user?.familyId) {
+      res.status(403).json({ message: 'You can only access your own family directory' });
+      return;
+    }
+    const candidateNodes = await getFamilyTree(familyId);
+    const nodes = (await Promise.all(candidateNodes.map(async (node: any) => {
+      const member = await db.findById('users', String(node.userId));
+      return member && member.familyId === familyId && member.isActive !== false && member.membershipStatus === 'Approved' ? node : null;
+    }))).filter(Boolean);
     const tree = buildFamilyTreeStructure(nodes);
 
     res.json({ tree, totalMembers: nodes.length });
@@ -35,7 +46,7 @@ export const search = async (req: AuthRequest, res: Response): Promise<void> => 
     const { q = '', limit = '1000' } = req.query;
 
     // If q is empty, return all users up to limit
-    const results = await searchUsers(String(q), parseInt(String(limit)));
+    const results = await searchUsers(String(q), parseInt(String(limit)), req.user?.familyId, req.user?.id);
 
     res.json({
       query: q,
@@ -50,7 +61,7 @@ export const search = async (req: AuthRequest, res: Response): Promise<void> => 
 export const getLeaderboardData = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const { limit = '100' } = req.query;
-    const leaderboard = await getLeaderboard(parseInt(String(limit)));
+    const leaderboard = await getLeaderboard(parseInt(String(limit)), req.user?.familyId, req.user?.id);
 
     res.json({
       totalRanked: leaderboard.length,
@@ -74,12 +85,21 @@ export const toggleUserStatus = async (req: AuthRequest, res: Response): Promise
     const { db } = await import('../config/storage');
     const user = await db.findById('users', userId);
 
-    if (!user) {
+    if (!user || user.familyId !== req.user?.familyId || user.membershipStatus !== 'Approved') {
       res.status(404).json({ message: 'User not found' });
       return;
     }
+    if (!isActive && user.role === 'admin') {
+      const admins = await db.find('users', { familyId: user.familyId, role: 'admin' });
+      const activeAdmins = admins.filter((member: any) => member.isActive !== false && member.membershipStatus === 'Approved');
+      if (activeAdmins.length <= 1) {
+        res.status(409).json({ message: 'You cannot deactivate the last remaining family admin' });
+        return;
+      }
+    }
 
     await db.updateOne('users', { _id: userId }, { isActive });
+    if (!isActive) wsService.disconnectUser(String(userId));
 
     res.json({
       message: `User ${isActive ? 'activated' : 'deactivated'} successfully`,
@@ -94,19 +114,20 @@ export const toggleUserStatus = async (req: AuthRequest, res: Response): Promise
 export const updateUser = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const { userId } = req.params;
-    const { firstName, lastName, email, phone, role, isActive, gender, house, occupation, address, linkedin, instagram, facebook, countryCode, profilePicture } = req.body;
+    const { firstName, lastName, email, phone, gender, house, occupation, address, linkedin, instagram, facebook, countryCode, profilePicture } = req.body;
 
     const { db } = await import('../config/storage');
     const user = await db.findById('users', userId);
 
-    if (!user) {
+    if (!user || user.familyId !== req.user?.familyId || user.membershipStatus !== 'Approved') {
       res.status(404).json({ message: 'User not found' });
       return;
     }
 
     // Check if email is being changed and if it's already taken
-    if (email && email !== user.email) {
-      const existingUser = await db.findOne('users', { email });
+    const normalizedEmail = typeof email === 'string' ? email.trim().toLowerCase() : email;
+    if (normalizedEmail && normalizedEmail !== user.email) {
+      const existingUser = await db.findOne('users', { email: normalizedEmail });
       if (existingUser && existingUser._id !== userId) {
         res.status(400).json({ message: 'Email already in use by another user' });
         return;
@@ -116,7 +137,7 @@ export const updateUser = async (req: AuthRequest, res: Response): Promise<void>
     const updates: any = {};
     if (firstName !== undefined) updates.firstName = firstName;
     if (lastName !== undefined) updates.lastName = lastName;
-    if (email !== undefined) updates.email = email;
+    if (email !== undefined) updates.email = normalizedEmail;
     if (phone !== undefined) updates.phone = phone;
     if (countryCode !== undefined) updates.countryCode = countryCode;
     if (gender !== undefined) updates.gender = gender;
@@ -128,12 +149,6 @@ export const updateUser = async (req: AuthRequest, res: Response): Promise<void>
     if (facebook !== undefined) updates.facebook = facebook;
     if (profilePicture !== undefined) updates.profilePicture = profilePicture;
     
-    // Only admins can update role and isActive
-    if (req.user?.role === 'admin' || req.user?.isSuperUser) {
-      if (role !== undefined) updates.role = role;
-      if (isActive !== undefined) updates.isActive = isActive;
-    }
-
     await db.updateOne('users', { _id: userId }, updates);
 
     const updatedUser = await db.findById('users', userId);
@@ -143,12 +158,50 @@ export const updateUser = async (req: AuthRequest, res: Response): Promise<void>
       return;
     }
     
-    // Remove password from response
-    const { password, ...userWithoutPassword } = updatedUser as any;
-
-    res.json(userWithoutPassword);
+    res.json(sanitizeUserForViewer(updatedUser, String(req.user?.id)));
   } catch (error: any) {
     res.status(500).json({ message: error.message });
+  }
+};
+
+export const updateOwnProfile = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { userId } = req.params;
+    if (String(req.user?.id) !== String(userId)) {
+      res.status(403).json({ message: 'You can only update your own profile' });
+      return;
+    }
+    const user = await db.findById('users', userId);
+    if (!user || user.familyId !== req.user?.familyId || user.isActive === false || user.membershipStatus !== 'Approved') {
+      res.status(404).json({ message: 'User not found' });
+      return;
+    }
+    const fields = ['firstName', 'lastName', 'email', 'phone', 'countryCode', 'gender', 'house', 'occupation', 'address', 'linkedin', 'instagram', 'facebook', 'profilePicture', 'dateOfBirth', 'marriageDate', 'deathDate', 'notes'];
+    const updates: Record<string, any> = {};
+    for (const field of fields) if (req.body[field] !== undefined) updates[field] = req.body[field];
+    if (updates.email) updates.email = String(updates.email).trim().toLowerCase();
+    if (updates.email && updates.email !== user.email) {
+      const existing = await db.findOne('users', { email: updates.email });
+      if (existing && String(existing._id) !== String(userId)) {
+        res.status(409).json({ message: 'Email already in use by another user' });
+        return;
+      }
+    }
+    if (updates.phone && updates.phone !== user.phone) {
+      const existing = await db.findOne('users', { phone: updates.phone });
+      if (existing && String(existing._id) !== String(userId)) {
+        res.status(409).json({ message: 'Phone number already in use by another user' });
+        return;
+      }
+    }
+    const updated = await db.updateOne('users', { _id: userId }, updates);
+    if (!updated) {
+      res.status(404).json({ message: 'User not found' });
+      return;
+    }
+    res.json(sanitizeUserForViewer(updated, String(req.user?.id)));
+  } catch (error: any) {
+    res.status(400).json({ message: error.message });
   }
 };
 
@@ -159,8 +212,13 @@ export const deleteUser = async (req: AuthRequest, res: Response): Promise<void>
     const { db } = await import('../config/storage');
     const user = await db.findById('users', userId);
 
-    if (!user) {
+    if (!user || user.familyId !== req.user?.familyId) {
       res.status(404).json({ message: 'User not found' });
+      return;
+    }
+
+    if (user.role === 'admin') {
+      res.status(409).json({ message: 'Revoke admin privileges through Access Management before deleting this member' });
       return;
     }
 
@@ -169,6 +227,7 @@ export const deleteUser = async (req: AuthRequest, res: Response): Promise<void>
       res.status(403).json({ message: 'Cannot delete super admin users' });
       return;
     }
+    wsService.disconnectUser(String(userId));
 
     // CASCADE DELETION: Delete all related records
     console.log(`Starting cascade deletion for user ${userId}`);

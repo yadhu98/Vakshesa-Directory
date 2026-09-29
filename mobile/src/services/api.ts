@@ -1,32 +1,15 @@
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
-
-// API Base URL Configuration
-// IMPORTANT: Set USE_DEV_TUNNEL to true when using VS Code dev tunnels
-const USE_DEV_TUNNEL = true; // Set to true when using dev tunnels, false for local network
-
-// Backend port forwarded URL from VS Code dev tunnels
-// To get this:
-// 1. In VS Code, open Ports view (Ctrl+Shift+P → "Ports: Focus on Ports View")
-// 2. Click "Forward a Port" and enter 5000
-// 3. Right-click port 5000 → Port Visibility → Public
-// 4. Copy the forwarded URL and paste below
-const DEV_TUNNEL_BACKEND_URL = 'http://localhost:5000/api'; // UPDATE THIS!
+import Constants from 'expo-constants';
 
 const getBaseURL = () => {
-  if (USE_DEV_TUNNEL) {
-    // Using VS Code dev tunnels - works on any device via internet
-    return DEV_TUNNEL_BACKEND_URL;
-  }
-  
-  if (Platform.OS === 'web') {
-    // Local web browser
-    return 'http://localhost:5000/api';
-  }
-  
-  // Mobile device on same WiFi network
-  return 'http://192.168.1.2:5000/api';
+  if (Platform.OS === 'web') return 'http://localhost:5001/api';
+
+  // Expo Go's host URI contains the computer's LAN IP, reachable by the phone.
+  const hostUri = Constants.expoConfig?.hostUri;
+  const host = hostUri?.split(':')[0] || 'localhost';
+  return `http://${host}:5001/api`;
 };
 
 const API_BASE_URL = getBaseURL();
@@ -60,13 +43,15 @@ export const authService = {
   },
   register: async (userData: any) => {
     const response = await axiosInstance.post('/auth/register', userData);
-    await AsyncStorage.setItem('authToken', response.data.token);
-    // Normalize user data - backend returns 'id' but we need '_id'
-    const normalizedUser = {
-      ...response.data.user,
-      _id: response.data.user._id || response.data.user.id,
-    };
-    await AsyncStorage.setItem('userData', JSON.stringify(normalizedUser));
+    // The approval flow returns 202 with no token — only persist when present.
+    if (response.data.token) await AsyncStorage.setItem('authToken', response.data.token);
+    if (response.data.user) {
+      const normalizedUser = {
+        ...response.data.user,
+        _id: response.data.user._id || response.data.user.id,
+      };
+      await AsyncStorage.setItem('userData', JSON.stringify(normalizedUser));
+    }
     return response.data;
   },
   logout: async () => {

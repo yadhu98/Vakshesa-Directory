@@ -1,10 +1,10 @@
 
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { authService } from '../services/api';
-import axios from 'axios';
+import { authService, inviteService } from '../services/api';
 
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5001/api';
+// NOTE: invite validation intentionally uses the shared axios instance in
+// services/api.ts so local dev (localhost:5001) and production stay in sync.
 
 const initialForm = {
   firstName: '',
@@ -170,6 +170,10 @@ const RegisterScreen: React.FC = () => {
   const [inviteToken, setInviteToken] = useState('');
   const [inviteValid, setInviteValid] = useState<boolean | null>(null);
   const [inviterName, setInviterName] = useState('');
+  const [familyName, setFamilyName] = useState('');
+  const [invitedEmail, setInvitedEmail] = useState('');
+  const [reviewing, setReviewing] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
 
@@ -185,11 +189,16 @@ const RegisterScreen: React.FC = () => {
     setInviteToken(token);
     
     // Validate the invite token
-    axios.get(`${API_URL}/invites/validate/${token}`)
+    inviteService.validateInvite(token)
       .then(response => {
         if (response.data.valid) {
           setInviteValid(true);
           setInviterName(response.data.createdByName);
+          setFamilyName(response.data.familyName || 'Family directory');
+          if (response.data.email) {
+            setInvitedEmail(response.data.email);
+            setForm((current) => ({ ...current, email: response.data.email }));
+          }
           setError('');
         } else {
           setInviteValid(false);
@@ -240,6 +249,11 @@ const RegisterScreen: React.FC = () => {
     }
     
     if (!validateForm()) return;
+
+    if (!reviewing) {
+      setReviewing(true);
+      return;
+    }
     
     setLoading(true);
     try {
@@ -258,8 +272,8 @@ const RegisterScreen: React.FC = () => {
         role: 'user',
         inviteToken: inviteToken, // Include the invite token
       };
-      await authService.register(registrationData);
-      navigate('/directory', { replace: true });
+      const response = await authService.register(registrationData);
+      setSubmitted(response.status === 'Pending');
     } catch (err: any) {
       setError(err?.response?.data?.message || 'Registration failed');
     } finally {
@@ -294,12 +308,40 @@ const RegisterScreen: React.FC = () => {
           </div>
         )}
         
-        {inviteValid && (
+        {submitted && (
+          <div style={{ textAlign: 'center', padding: '12px 0' }}>
+            <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 8 }}>Request submitted</h2>
+            <p style={{ color: '#555', lineHeight: 1.5 }}>Your registration for {familyName} is <strong>Pending Approval</strong>. An admin must approve it before you can access the directory. Sign in later to check your request status.</p>
+            <button type="button" style={styles.button} onClick={() => navigate('/', { replace: true })}>Go to Sign In</button>
+          </div>
+        )}
+
+        {inviteValid && !submitted && (
           <>
+          {reviewing ? (
+            <div>
+              <div style={styles.sectionTitle}>Review your request</div>
+              <p style={{ color: '#555', marginBottom: 16 }}>You are requesting access to <strong>{familyName}</strong>. Review the information below before sending it to an admin.</p>
+              <dl style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, fontSize: 14 }}>
+                <div><dt style={{ color: '#777' }}>Name</dt><dd>{form.firstName} {form.lastName}</dd></div>
+                <div><dt style={{ color: '#777' }}>Email</dt><dd>{form.email || 'Not provided'}</dd></div>
+                <div><dt style={{ color: '#777' }}>Phone</dt><dd>{form.countryCode} {form.phone}</dd></div>
+                <div><dt style={{ color: '#777' }}>House</dt><dd>{form.house}</dd></div>
+                <div><dt style={{ color: '#777' }}>Gender</dt><dd>{form.gender}</dd></div>
+                <div><dt style={{ color: '#777' }}>Occupation</dt><dd>{form.profession || 'Not provided'}</dd></div>
+                <div style={{ gridColumn: '1 / -1' }}><dt style={{ color: '#777' }}>Address</dt><dd>{form.address || 'Not provided'}</dd></div>
+              </dl>
+              <p style={{ marginTop: 16, fontSize: 13, color: '#666' }}>Your password is set and will not be shown to the reviewing admin.</p>
+              <button type="button" style={{ ...styles.button, background: '#666', marginTop: 12 }} onClick={() => setReviewing(false)} disabled={loading}>Back to edit</button>
+              <button style={{ ...styles.button, marginTop: 10, ...(loading ? styles.buttonDisabled : {}) }} type="submit" disabled={loading}>
+                {loading ? 'Submitting...' : 'Request access'}
+              </button>
+            </div>
+          ) : <>
             <div style={styles.sectionTitle}>Personal Information</div>
         <input style={styles.input} placeholder="First Name *" value={form.firstName} onChange={e => handleChange('firstName', e.target.value)} disabled={loading} />
         <input style={styles.input} placeholder="Last Name *" value={form.lastName} onChange={e => handleChange('lastName', e.target.value)} disabled={loading} />
-        <input style={styles.input} placeholder="Email (optional)" value={form.email} onChange={e => handleChange('email', e.target.value)} disabled={loading} type="email" />
+        <input style={styles.input} placeholder="Email (optional)" value={form.email} onChange={e => handleChange('email', e.target.value)} disabled={loading || !!invitedEmail} type="email" />
         
         <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
           <select 
@@ -403,9 +445,10 @@ const RegisterScreen: React.FC = () => {
         <input style={styles.input} placeholder="Password (min 8 characters) *" value={form.password} onChange={e => handleChange('password', e.target.value)} disabled={loading} type="password" />
         <input style={styles.input} placeholder="Confirm Password *" value={form.confirmPassword} onChange={e => handleChange('confirmPassword', e.target.value)} disabled={loading} type="password" />
         <button style={{ ...styles.button, ...(loading ? styles.buttonDisabled : {}) }} type="submit" disabled={loading}>
-          {loading ? 'Creating Account...' : 'Create Account'}
+          {loading ? 'Submitting...' : 'Request access to Vakshesa Directory'}
         </button>
         <div style={styles.linkButton} onClick={() => navigate('/')}>Already have an account? Sign In</div>
+          </>}
           </>
         )}
       </form>

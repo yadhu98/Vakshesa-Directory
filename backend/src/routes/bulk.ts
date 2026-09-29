@@ -1,11 +1,12 @@
 import { Router } from 'express';
 import { authMiddleware, adminMiddleware, AuthRequest } from '../middleware/auth';
+import { sanitizeUserForViewer } from '../services/profilePrivacy';
 import { createUser } from '../services/userService';
 import { db } from '../config/storage';
 
 const router = Router();
 
-// Bulk create families and users from JSON array (for testing with CSV data)
+// Import manually verified members into the current admin's family only.
 router.post('/import-families-bulk', authMiddleware, adminMiddleware, async (req: AuthRequest, res) => {
   try {
     const data: any[] = req.body;
@@ -34,21 +35,11 @@ router.post('/import-families-bulk', authMiddleware, adminMiddleware, async (req
     // Map to store email -> userId for linking relationships later
     const emailToUserId: Record<string, string> = {};
 
-    // Step 1: Create families and users
+    if (!req.user?.familyId) return res.status(400).json({ message: 'Admin account is not associated with a family' });
+
+    // Step 1: Create approved members inside the current family only.
     for (const [familyName, members] of Object.entries(familiesByName)) {
       try {
-        // Check if family already exists
-        let family = await db.findOne('families', { name: familyName });
-        if (!family) {
-          // Create family if not exists
-          family = await db.create('families', {
-            name: familyName,
-            description: `Family group: ${familyName}`,
-            members: [],
-          });
-          results.familiesCreated++;
-        }
-
         // Create users
         for (const member of members) {
           try {
@@ -58,8 +49,9 @@ router.post('/import-families-bulk', authMiddleware, adminMiddleware, async (req
               email: member.email,
               phone: member.phone,
               password: member.password || 'default123',
-              role: member.role || 'user',
-              familyId: 'family-default',  // Always use family-default for bulk import
+              role: 'user',
+              membershipStatus: 'Approved',
+              familyId: req.user.familyId,
               house: member.house || familyName,
               gender: member.gender,
               generation: member.generation || 1,
@@ -78,7 +70,7 @@ router.post('/import-families-bulk', authMiddleware, adminMiddleware, async (req
             // Create family node
             await db.create('familynodes', {
               userId: user._id,
-              familyId: family._id,
+              familyId: req.user.familyId,
               generation: member.generation || 1,
             });
 
@@ -138,22 +130,8 @@ router.post('/import-families-bulk', authMiddleware, adminMiddleware, async (req
 // Get all families (ensure all houses exist)
 router.get('/families', authMiddleware, async (req: AuthRequest, res) => {
   try {
-    // Ensure all houses are represented as families
-    const requiredHouses = ['Kadannamanna', 'Ayiranazhi', 'Aripra', 'Mankada'];
-    
-    for (const houseName of requiredHouses) {
-      const existingFamily = await db.findOne('families', { name: houseName });
-      if (!existingFamily) {
-        await db.create('families', {
-          name: houseName,
-          description: `Family group: ${houseName}`,
-          createdAt: new Date().toISOString(),
-        });
-      }
-    }
-    
-    const families = await db.find('families', {});
-    res.json(families);
+    const family = req.user?.familyId ? await db.findById('families', req.user.familyId) : null;
+    res.json(family ? [family] : []);
   } catch (error: any) {
     res.status(500).json({ message: error.message });
   }
@@ -192,16 +170,12 @@ router.post('/families', authMiddleware, adminMiddleware, async (req: AuthReques
 // Get all users (accessible to all authenticated users for directory)
 router.get('/users', authMiddleware, async (req: AuthRequest, res) => {
   try {
-    const { role, familyId } = req.query;
-    let users = await db.find('users', {});
+    const { role } = req.query;
+    let users = await db.find('users', { familyId: req.user?.familyId });
+    users = users.filter((user: any) => user.isActive !== false && user.membershipStatus === 'Approved');
     
     if (role) users = users.filter(u => u.role === role);
-    if (familyId) users = users.filter(u => u.familyId === familyId);
-
-    const filtered = users.map(u => {
-      const { password, ...userWithoutPassword } = u;
-      return userWithoutPassword;
-    });
+    const filtered = users.map(u => sanitizeUserForViewer(u, String(req.user?.id)));
     
     res.json({ count: filtered.length, users: filtered });
   } catch (error: any) {
@@ -217,6 +191,17 @@ router.post('/link-relationships', authMiddleware, adminMiddleware, async (req: 
 
     if (!userId) {
       return res.status(400).json({ message: 'userId is required' });
+    }
+    const member = await db.findById('users', userId);
+    if (!member || member.familyId !== req.user?.familyId || member.membershipStatus !== 'Approved') {
+      return res.status(404).json({ message: 'Approved family member not found' });
+    }
+
+    for (const relatedId of [fatherId, motherId, spouseId].filter(Boolean)) {
+      const related = await db.findById('users', String(relatedId));
+      if (!related || related.familyId !== req.user?.familyId || related.membershipStatus !== 'Approved' || related.isActive === false) {
+        return res.status(400).json({ message: 'Relationships must refer to approved members of your family' });
+      }
     }
 
     const updates: any = {};
@@ -339,7 +324,7 @@ router.put('/stalls/:stallId/status', authMiddleware, adminMiddleware, async (re
   }
 });
 
-// Delete all users except super admin
+// Delete regular members in this family while retaining its administrators.
 router.delete('/delete-all-users', authMiddleware, adminMiddleware, async (req: AuthRequest, res) => {
   try {
     const confirmCode = req.body.confirmCode;
@@ -349,113 +334,46 @@ router.delete('/delete-all-users', authMiddleware, adminMiddleware, async (req: 
       return res.status(400).json({ message: 'Invalid confirmation code' });
     }
 
-    // Get all users to count super admins and get user IDs to delete
-    const allUsers = await db.find('users', {});
-    const superAdminCount = allUsers.filter(user => user.isSuperUser).length;
-    const usersToDelete = allUsers.filter(user => !user.isSuperUser);
-    const userIdsToDelete = usersToDelete.map(user => user._id);
+    const allUsers = await db.find('users', { familyId: req.user?.familyId });
+    const admins = allUsers.filter((user: any) => user.role === 'admin' && user.membershipStatus === 'Approved' && user.isActive !== false);
+    const usersToDelete = allUsers.filter((user: any) => user.role !== 'admin' && !user.isSuperUser);
+    const userIdsToDelete = usersToDelete.map((user: any) => String(user._id));
 
-    console.log(`Starting bulk cascade deletion for ${userIdsToDelete.length} users`);
-
-    // CASCADE DELETION: Delete all related records for users being deleted
-    
-    // Delete tokens
-    await db.deleteMany('tokens', { userId: { $in: userIdsToDelete } });
-    console.log('Deleted tokens for all users');
-
-    // Delete transactions
-    await db.deleteMany('transactions', { userId: { $in: userIdsToDelete } });
-    console.log('Deleted transactions for all users');
-
-    // Delete stall visits
-    await db.deleteMany('stallvisits', { userId: { $in: userIdsToDelete } });
-    console.log('Deleted stall visits for all users');
-
-    // Delete points
-    await db.deleteMany('points', { userId: { $in: userIdsToDelete } });
-    console.log('Deleted points for all users');
-
-    // Delete sales
-    await db.deleteMany('sales', { userId: { $in: userIdsToDelete } });
-    console.log('Deleted sales for all users');
-
-    // Delete stall participations
-    await db.deleteMany('stallparticipations', { participantId: { $in: userIdsToDelete } });
-    console.log('Deleted stall participations for all users');
-
-    // Update families - remove all deleted users from members arrays
-    const allFamilies = await db.find('families', {});
-    for (const family of allFamilies) {
-      let needsUpdate = false;
-      const updates: any = {};
-
-      // Filter out deleted users from members
-      const remainingMembers = family.members.filter((id: string) => !userIdsToDelete.includes(id));
-      if (remainingMembers.length !== family.members.length) {
-        updates.members = remainingMembers;
-        needsUpdate = true;
-      }
-
-      // Clear headOfFamily if it's a deleted user
-      if (family.headOfFamily && userIdsToDelete.includes(family.headOfFamily)) {
-        updates.headOfFamily = null;
-        needsUpdate = true;
-      }
-
-      if (needsUpdate) {
-        await db.updateOne('families', { _id: family._id }, updates);
-      }
+    for (const userId of userIdsToDelete) {
+      await db.deleteMany('tokens', { userId });
+      await db.deleteMany('transactions', { userId });
+      await db.deleteMany('stallvisits', { userId });
+      await db.deleteMany('points', { userId });
+      await db.deleteMany('sales', { userId });
+      await db.deleteMany('stallparticipations', { participantId: userId });
+      await db.deleteMany('familynodes', { userId });
+      await db.deleteMany('inviteTokens', { createdBy: userId });
     }
-    console.log('Updated family records');
 
-    // Clean up family tree relationships - clear references to deleted users
-    const remainingUsers = await db.find('users', { 
-      $or: [
-        { fatherId: { $in: userIdsToDelete } },
-        { motherId: { $in: userIdsToDelete } },
-        { spouseId: { $in: userIdsToDelete } },
-        { children: { $in: userIdsToDelete } }
-      ]
-    });
-
+    const deletedSet = new Set(userIdsToDelete);
+    const remainingUsers = await db.find('users', { familyId: req.user?.familyId });
     for (const user of remainingUsers) {
-      const updates: any = {};
-
-      if (user.fatherId && userIdsToDelete.includes(user.fatherId)) {
-        updates.fatherId = null;
-      }
-      if (user.motherId && userIdsToDelete.includes(user.motherId)) {
-        updates.motherId = null;
-      }
-      if (user.spouseId && userIdsToDelete.includes(user.spouseId)) {
-        updates.spouseId = null;
-      }
-      if (user.children && user.children.length > 0) {
-        const remainingChildren = user.children.filter((id: string) => !userIdsToDelete.includes(id));
-        if (remainingChildren.length !== user.children.length) {
-          updates.children = remainingChildren;
-        }
-      }
-
-      if (Object.keys(updates).length > 0) {
-        await db.updateOne('users', { _id: user._id }, updates);
-      }
+      const updates: Record<string, any> = {};
+      if (user.fatherId && deletedSet.has(String(user.fatherId))) updates.fatherId = null;
+      if (user.motherId && deletedSet.has(String(user.motherId))) updates.motherId = null;
+      if (user.spouseId && deletedSet.has(String(user.spouseId))) updates.spouseId = null;
+      if (Array.isArray(user.children)) updates.children = user.children.filter((id: string) => !deletedSet.has(String(id)));
+      if (Object.keys(updates).length) await db.updateOne('users', { _id: user._id }, updates);
     }
-    console.log('Cleaned up family tree relationships');
 
-    // Finally, delete all non-super-admin users
-    const result = await db.deleteMany('users', { 
-      $or: [
-        { isSuperUser: { $exists: false } },
-        { isSuperUser: false },
-        { isSuperUser: null }
-      ]
-    });
+    const family = req.user?.familyId ? await db.findById('families', req.user.familyId) : null;
+    if (family) {
+      const updates: Record<string, any> = {};
+      if (Array.isArray(family.members)) updates.members = family.members.filter((id: string) => !deletedSet.has(String(id)));
+      if (family.headOfFamily && deletedSet.has(String(family.headOfFamily))) updates.headOfFamily = null;
+      if (Object.keys(updates).length) await db.updateOne('families', { _id: family._id }, updates);
+    }
+    for (const userId of userIdsToDelete) await db.deleteOne('users', { _id: userId });
 
     res.json({
-      message: `Deleted ${result.deletedCount} users and all related data. ${superAdminCount} super admin(s) preserved.`,
-      deletedCount: result.deletedCount,
-      superAdminsPreserved: superAdminCount,
+      message: `Deleted ${userIdsToDelete.length} regular family members. ${admins.length} family admin(s) were retained.`,
+      deletedCount: userIdsToDelete.length,
+      adminsPreserved: admins.length,
     });
   } catch (error: any) {
     console.error('Error in bulk delete:', error);
@@ -496,14 +414,15 @@ router.post('/import-users', authMiddleware, adminMiddleware, async (req: AuthRe
         }
 
         // Create user with default password if not provided
-        const user = await createUser({
+        await createUser({
           firstName: userData.firstName,
           lastName: userData.lastName,
           email: userData.email,
           phone: userData.phone || '',
           password: userData.password || 'Password123!',
-          role: userData.role || 'user',
-          familyId: 'family-default',
+          role: 'user',
+          membershipStatus: 'Approved',
+          familyId: req.user?.familyId,
           house: userData.house || 'Kadannamanna',
           gender: userData.gender,
           address: userData.address || '',
@@ -544,16 +463,21 @@ router.delete('/clear-leaderboard', authMiddleware, adminMiddleware, async (req:
       return res.status(400).json({ message: 'Invalid confirmation code' });
     }
 
-    console.log('Starting leaderboard clear - deleting all points');
+    if (!req.user?.familyId) return res.status(400).json({ message: 'Admin account is not associated with a family' });
+    console.log('Starting leaderboard clear for the current family');
 
-    // Delete all points from the Points collection
-    const result = await db.deleteMany('points', {});
+    const points = await db.find('points', {});
+    let deletedCount = 0;
+    for (const point of points) {
+      const user = await db.findById('users', String(point.userId));
+      if (user?.familyId === req.user.familyId && await db.deleteOne('points', { _id: point._id })) deletedCount++;
+    }
 
-    console.log(`Cleared ${result.deletedCount} point records`);
+    console.log(`Cleared ${deletedCount} point records`);
 
     res.json({
-      message: `Leaderboard cleared successfully. Deleted ${result.deletedCount} point records.`,
-      deletedCount: result.deletedCount,
+      message: `Leaderboard cleared successfully. Deleted ${deletedCount} point records.`,
+      deletedCount,
     });
   } catch (error: any) {
     console.error('Error clearing leaderboard:', error);
