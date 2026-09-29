@@ -94,7 +94,7 @@ const DirectoryScreen: React.FC = () => {
       if (searchQuery) {
         filtered = filtered.filter((m: Member) =>
           `${m.firstName} ${m.lastName}`.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          m.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          m.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
           m.phone?.toLowerCase().includes(searchQuery.toLowerCase())
         );
       }
