@@ -64,8 +64,16 @@ const save = async (req: AuthRequest, res: Response, existing?: any): Promise<vo
   const title = String(req.body.title || '').trim();
   const content = String(req.body.content || '').trim();
   const urlInput = String(req.body.url || '').trim();
+  const eventDateInput = String(req.body.eventDate || '').trim();
+  const eventStartTimeInput = String(req.body.eventStartTime || '').trim();
+  const eventEndTimeInput = String(req.body.eventEndTime || '').trim();
   const url = cleanUrl(urlInput);
   if (urlInput && !url) { res.status(400).json({ message: 'Enter a valid http or https URL' }); return; }
+  const eventDate = eventDateInput || undefined;
+  const isValidEventDate = !!eventDate && /^\d{4}-\d{2}-\d{2}$/.test(eventDate) && !Number.isNaN(Date.parse(`${eventDate}T00:00:00.000Z`)) && new Date(`${eventDate}T00:00:00.000Z`).toISOString().slice(0, 10) === eventDate;
+  if (eventDate && !isValidEventDate) { res.status(400).json({ message: 'Choose a valid event date' }); return; }
+  const validTime = (value: string) => !value || /^(?:[01]\d|2[0-3]):[0-5]\d$/.test(value);
+  if (!validTime(eventStartTimeInput) || !validTime(eventEndTimeInput)) { res.status(400).json({ message: 'Enter a valid event time' }); return; }
   let currentImages: any[] = [];
   if (existing) {
     let imageIndexes: number[];
@@ -91,7 +99,7 @@ const save = async (req: AuthRequest, res: Response, existing?: any): Promise<vo
   }
   const author = await db.findById('users', String(req.user?.id));
   const linkPreview = await getYoutubePreview(url);
-  const fields = { title, content, url, linkPreview, images, taggedUserIds, ...(existing ? {} : { familyId: req.user?.familyId, authorId: req.user?.id, authorName: `${author?.firstName || ''} ${author?.lastName || ''}`.trim(), publishedAt: new Date(), isPublished: true }) };
+  const fields = { title, content, url, linkPreview, images, taggedUserIds, eventDate: eventDate || null, eventStartTime: eventDate ? eventStartTimeInput || null : null, eventEndTime: eventDate ? eventEndTimeInput || null : null, ...(existing ? {} : { familyId: req.user?.familyId, authorId: req.user?.id, authorName: `${author?.firstName || ''} ${author?.lastName || ''}`.trim(), publishedAt: new Date(), isPublished: true }) };
   const record = existing
     ? await db.updateOne('announcements', { _id: String(existing._id) }, fields)
     : await db.create('announcements', fields);

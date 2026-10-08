@@ -8,6 +8,9 @@ export interface IAnnouncement {
   linkPreview?: { title: string; description: string; thumbnailUrl?: string };
   images: { name: string; mimeType: string; data: string }[];
   taggedUserIds: string[];
+  eventDate?: string | null;
+  eventStartTime?: string | null;
+  eventEndTime?: string | null;
   authorId: string;
   authorName: string;
   publishedAt: Date;
@@ -27,6 +30,9 @@ const announcementSchema = new Schema<IAnnouncement>({
   },
   images: [{ name: String, mimeType: String, data: String }],
   taggedUserIds: [{ type: String }],
+  eventDate: { type: String, match: /^\d{4}-\d{2}-\d{2}$/ },
+  eventStartTime: { type: String, match: /^(?:[01]\d|2[0-3]):[0-5]\d$/ },
+  eventEndTime: { type: String, match: /^(?:[01]\d|2[0-3]):[0-5]\d$/ },
   authorId: { type: String, required: true },
   authorName: { type: String, required: true },
   publishedAt: { type: Date, required: true, default: Date.now, index: true },
@@ -34,4 +40,5 @@ const announcementSchema = new Schema<IAnnouncement>({
 }, { timestamps: true });
 
 announcementSchema.index({ familyId: 1, isPublished: 1, publishedAt: -1 });
+announcementSchema.index({ familyId: 1, isPublished: 1, eventDate: 1 });
 export const Announcement = model<IAnnouncement>('Announcement', announcementSchema);

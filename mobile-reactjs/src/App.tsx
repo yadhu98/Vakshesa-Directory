@@ -10,6 +10,7 @@ import ChangePasswordScreen from './screens/ChangePasswordScreen';
 import EnhancedProfileScreen from './screens/EnhancedProfileScreen';
 import AdminScreen from './screens/AdminScreen';
 import AnnouncementsScreen from './screens/AnnouncementsScreen';
+import CalendarScreen from './screens/CalendarScreen';
 import FooterNav from './components/FooterNav';
 import { isAdminUser } from './services/api';
 
@@ -58,6 +59,10 @@ const AppRoutes: React.FC = () => {
         <Route
           path="/announcements"
           element={<ProtectedRoute><AnnouncementsScreen /></ProtectedRoute>}
+        />
+        <Route
+          path="/calendar"
+          element={<ProtectedRoute><CalendarScreen /></ProtectedRoute>}
         />
         <Route 
           path="/edit-profile" 

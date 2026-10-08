@@ -1,15 +1,18 @@
 import React, { ChangeEvent, FormEvent, useCallback, useEffect, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { Plus, X, Edit2, Trash2, Link as LinkIcon } from 'feather-icons-react';
 import AppHeader from '../components/AppHeader';
 import { announcementService, isAdminUser, userService } from '../services/api';
 import './AnnouncementsScreen.css';
 
 type TaggedUser = { _id: string; firstName: string; lastName: string; [key: string]: any };
-type Announcement = { _id: string; title?: string; content: string; url?: string; linkPreview?: { title: string; description: string; thumbnailUrl?: string }; images: { name: string; mimeType: string; data: string }[]; taggedUsers?: TaggedUser[]; taggedUserIds?: string[]; authorName: string; publishedAt: string; updatedAt: string };
+type Announcement = { _id: string; title?: string; content: string; url?: string; eventDate?: string; eventStartTime?: string; eventEndTime?: string; linkPreview?: { title: string; description: string; thumbnailUrl?: string }; images: { name: string; mimeType: string; data: string }[]; taggedUsers?: TaggedUser[]; taggedUserIds?: string[]; authorName: string; publishedAt: string; updatedAt: string };
 const panel: React.CSSProperties = { background: '#fff', border: '1px solid #e5e5e5', borderRadius: 14, padding: 16, marginBottom: 14 };
 const button: React.CSSProperties = { border: 0, borderRadius: 8, padding: '10px 14px', fontWeight: 600, cursor: 'pointer' };
 
 const AnnouncementsScreen: React.FC = () => {
+  const location = useLocation();
+  const navigate = useNavigate();
   const admin = isAdminUser();
   const [items, setItems] = useState<Announcement[]>([]);
   const [loading, setLoading] = useState(true);
@@ -19,6 +22,9 @@ const AnnouncementsScreen: React.FC = () => {
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [url, setUrl] = useState('');
+  const [eventDate, setEventDate] = useState('');
+  const [eventStartTime, setEventStartTime] = useState('');
+  const [eventEndTime, setEventEndTime] = useState('');
   const [images, setImages] = useState<File[]>([]);
   const [keptImages, setKeptImages] = useState<Announcement['images']>([]);
   const [tagged, setTagged] = useState<TaggedUser[]>([]);
@@ -39,14 +45,20 @@ const AnnouncementsScreen: React.FC = () => {
   }, []);
   useEffect(() => { load(); }, [load]);
   useEffect(() => {
+    const targetId = decodeURIComponent(location.hash.slice(1));
+    if (!targetId || loading) return;
+    const timeout = window.setTimeout(() => document.getElementById(targetId)?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
+    return () => window.clearTimeout(timeout);
+  }, [items, loading, location.hash]);
+  useEffect(() => {
     if (!admin || search.trim().length < 2) { setMatches([]); return; }
     let live = true;
     userService.searchUsers(search, 30).then(res => { if (live) setMatches((res.data?.results || []).map((u: any) => ({ _id: u._id || u.id, firstName: u.firstName, lastName: u.lastName })).filter((u: TaggedUser) => u._id)); }).catch(() => { if (live) setMatches([]); });
     return () => { live = false; };
   }, [admin, search]);
 
-  const openCreate = () => { setEditing(null); setTitle(''); setContent(''); setUrl(''); setImages([]); setKeptImages([]); setTagged([]); setError(''); setFormVisible(true); };
-  const openEdit = (item: Announcement) => { setEditing(item); setTitle(item.title || ''); setContent(item.content || ''); setUrl(item.url || ''); setImages([]); setKeptImages(item.images || []); setTagged(item.taggedUsers || []); setError(''); setFormVisible(true); };
+  const openCreate = useCallback(() => { setEditing(null); setTitle(''); setContent(''); setUrl(''); setEventDate(''); setEventStartTime(''); setEventEndTime(''); setImages([]); setKeptImages([]); setTagged([]); setError(''); setFormVisible(true); }, []);
+  const openEdit = (item: Announcement) => { setEditing(item); setTitle(item.title || ''); setContent(item.content || ''); setUrl(item.url || ''); setEventDate(item.eventDate || ''); setEventStartTime(item.eventStartTime || ''); setEventEndTime(item.eventEndTime || ''); setImages([]); setKeptImages(item.images || []); setTagged(item.taggedUsers || []); setError(''); setFormVisible(true); };
   const chooseImages = (event: ChangeEvent<HTMLInputElement>) => {
     const selected = Array.from(event.target.files || []);
     if (selected.some(file => !['image/jpeg', 'image/png', 'image/webp'].includes(file.type))) { setError('Choose JPG, PNG, or WEBP images'); event.target.value = ''; return; }
@@ -56,7 +68,7 @@ const AnnouncementsScreen: React.FC = () => {
   };
   const submit = async (event: FormEvent) => {
     event.preventDefault(); setSaving(true); setError('');
-    const form = new FormData(); form.append('title', title); form.append('content', content); form.append('url', url);
+    const form = new FormData(); form.append('title', title); form.append('content', content); form.append('url', url); form.append('eventDate', eventDate); form.append('eventStartTime', eventStartTime); form.append('eventEndTime', eventEndTime);
     form.append('taggedUserIds', JSON.stringify(tagged.map(user => user._id)));
     form.append('existingImageIndexes', JSON.stringify(keptImages.map(image => editing?.images.findIndex(original => original.data === image.data)).filter((index): index is number => index !== undefined && index >= 0)));
     images.forEach(file => form.append('images', file));
@@ -86,6 +98,12 @@ const AnnouncementsScreen: React.FC = () => {
   const toggleExpanded = (id: string) => {
     setExpandedIds(current => current.includes(id) ? current.filter(itemId => itemId !== id) : [...current, id]);
   };
+  useEffect(() => {
+    if ((location.state as any)?.openCreateAnnouncement) {
+      openCreate();
+      navigate(location.pathname, { replace: true, state: null });
+    }
+  }, [location.key, location.pathname, location.state, navigate, openCreate]);
 
   return <div style={{ minHeight: '100vh', background: '#f5f5f5', paddingBottom: 76 }}>
     <AppHeader title="Announcements" />
@@ -96,6 +114,11 @@ const AnnouncementsScreen: React.FC = () => {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}><h2 style={{ fontSize: 18, margin: 0 }}>{editing ? 'Edit announcement' : 'Create announcement'}</h2><button type="button" aria-label="Close" onClick={() => { setFormVisible(false); setEditing(null); }} style={{ ...button, background: 'transparent' }}><X size={20} /></button></div>
         <label style={{ display: 'block', marginTop: 14, fontSize: 13 }}>Title (optional)<input value={title} onChange={e => setTitle(e.target.value)} maxLength={160} style={inputStyle} /></label>
         <label style={{ display: 'block', marginTop: 12, fontSize: 13 }}>Announcement text<textarea value={content} onChange={e => setContent(e.target.value)} rows={5} maxLength={10000} placeholder="Write in English, മലയാളം, or both" style={{ ...inputStyle, resize: 'vertical' }} /></label>
+        <fieldset style={{ border: '1px solid #e2e2e2', borderRadius: 9, padding: 10, margin: '12px 0 0' }}><legend style={{ fontSize: 13, padding: '0 4px' }}>Optional calendar event</legend>
+          <label style={{ display: 'block', fontSize: 13 }}>Event date<input type="date" value={eventDate} onChange={e => setEventDate(e.target.value)} style={inputStyle} /></label>
+          {eventDate && <div style={{ display: 'flex', gap: 10, marginTop: 8 }}><label style={{ flex: 1, fontSize: 13 }}>Start time<input type="time" value={eventStartTime} onChange={e => setEventStartTime(e.target.value)} style={inputStyle} /></label><label style={{ flex: 1, fontSize: 13 }}>End time (optional)<input type="time" value={eventEndTime} onChange={e => setEventEndTime(e.target.value)} style={inputStyle} /></label></div>}
+          {!eventDate && <span style={{ display: 'block', marginTop: 5, color: '#666', fontSize: 12 }}>Add a date to show this announcement on the family calendar.</span>}
+        </fieldset>
         <label style={{ display: 'block', marginTop: 12, fontSize: 13 }}>Link<input value={url} onChange={e => setUrl(e.target.value)} type="url" placeholder="https://example.com" style={inputStyle} /></label>
         <label style={{ display: 'block', marginTop: 12, fontSize: 13 }}>Images (JPG, PNG, WEBP; up to 5 MB each)<input type="file" accept="image/jpeg,image/png,image/webp" multiple onChange={chooseImages} style={{ display: 'block', marginTop: 7 }} /></label>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 10 }}>{keptImages.map((image, index) => <div key={image.data} style={{ position: 'relative' }}><img src={image.data} alt={image.name} style={thumbStyle} /><button type="button" onClick={() => setKeptImages(current => current.filter((_, i) => i !== index))} style={removePill} aria-label="Remove attached image"><X size={15} /></button></div>)}{images.map((image, index) => <div key={`${image.name}-${index}`} style={{ position: 'relative' }}><span style={{ ...thumbStyle, display: 'grid', placeItems: 'center', background: '#eee', fontSize: 11 }}>{image.name}</span><button type="button" onClick={() => setImages(current => current.filter((_, i) => i !== index))} style={removePill} aria-label="Remove selected image"><X size={15} /></button></div>)}</div>
@@ -107,12 +130,13 @@ const AnnouncementsScreen: React.FC = () => {
       {loading ? <div style={{ ...panel, textAlign: 'center', color: '#666' }}>Loading announcements…</div> : items.length === 0 ? <div style={{ ...panel, textAlign: 'center', color: '#666' }}>No announcements yet.</div> : items.map(item => {
         const isExpanded = expandedIds.includes(item._id);
         const canCollapse = item.content.length > 190;
-        return <article key={item._id} className="announcement-card">
+        return <article id={`announcement-${item._id}`} key={item._id} className="announcement-card">
         <div className="announcement-card-header">
           <h2 className="announcement-card-title">{item.title || 'Announcement'}</h2>
           {admin && <div style={{ display: 'flex', flex: '0 0 auto', gap: 5 }}><button aria-label="Edit announcement" onClick={() => openEdit(item)} style={{ ...button, background: '#f3f3f3', padding: 7 }}><Edit2 size={15} /></button><button aria-label="Delete announcement" onClick={() => remove(item)} style={{ ...button, background: '#fff0f0', color: '#a22', padding: 7 }}><Trash2 size={15} /></button></div>}
         </div>
         <div className="announcement-card-meta">Posted by {item.authorName} · {new Date(item.publishedAt).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}</div>
+        {item.eventDate && <div className="announcement-event-date">📅 {new Date(`${item.eventDate}T00:00:00`).toLocaleDateString(undefined, { dateStyle: 'long' })}{item.eventStartTime ? ` · ${formatEventTime(item.eventStartTime)}` : ' · All day'}{item.eventEndTime ? `–${formatEventTime(item.eventEndTime)}` : ''}</div>}
         {item.content && <>
           <p className={`announcement-card-content${canCollapse && !isExpanded ? ' announcement-card-content-collapsed' : ''}`}>{item.content}</p>
           {canCollapse && <button type="button" className="announcement-read-more" onClick={() => toggleExpanded(item._id)}>{isExpanded ? 'Show less' : 'Read more'}</button>}
@@ -150,5 +174,6 @@ const AnnouncementsScreen: React.FC = () => {
 const inputStyle: React.CSSProperties = { display: 'block', boxSizing: 'border-box', width: '100%', marginTop: 6, padding: '10px 11px', border: '1px solid #ccc', borderRadius: 8, font: 'inherit', fontSize: 16 };
 const thumbStyle: React.CSSProperties = { width: 76, height: 66, objectFit: 'cover', borderRadius: 6 };
 const removePill: React.CSSProperties = { position: 'absolute', top: -6, right: -6, border: 0, background: '#222', color: '#fff', borderRadius: 12, width: 22, height: 22, display: 'grid', placeItems: 'center', cursor: 'pointer' };
+const formatEventTime = (value: string) => { const [hour, minute] = value.split(':').map(Number); return new Date(2000, 0, 1, hour, minute).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' }); };
 
 export default AnnouncementsScreen;
