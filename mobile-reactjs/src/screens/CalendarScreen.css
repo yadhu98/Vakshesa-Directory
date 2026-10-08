@@ -90,12 +90,12 @@
 .calendar-day.is-selected.is-today { border-color: #111; }
 
 .calendar-event-dots { display: flex; height: 5px; align-items: center; justify-content: center; gap: 2px; }
-.calendar-event-dots i { width: 4px; height: 4px; border-radius: 50%; background: #2563a6; }
+.calendar-event-dots i { width: 6px; height: 6px; border-radius: 50%; background: #f4a261; }
 .calendar-day.is-selected .calendar-event-dots i { background: #fff; }
 .calendar-event-dots b { color: inherit; font-size: 8px; line-height: 1; }
 
 .calendar-legend { display: flex; align-items: center; gap: 6px; margin-top: 12px; color: #666; font-size: 11px; }
-.calendar-legend-dot { width: 7px; height: 7px; border-radius: 50%; background: #2563a6; }
+.calendar-legend-dot { width: 10px; height: 10px; border-radius: 50%; background: #f4a261; }
 
 .calendar-events h2 { margin: 0 0 12px; color: #151515; font-size: 17px; }
 .calendar-empty { margin: 0; padding: 12px 0; color: #777; font-size: 14px; text-align: center; }
