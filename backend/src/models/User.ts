@@ -92,8 +92,6 @@ const userSchema = new Schema<IUser>(
     email: {
       type: String,
       required: false,
-      unique: true,
-      sparse: true,
       lowercase: true,
       trim: true,
     },
@@ -225,6 +223,10 @@ const userSchema = new Schema<IUser>(
 // Index for fast lookups
 userSchema.index({ role: 1 });
 userSchema.index({ house: 1 });
+userSchema.index(
+  { email: 1 },
+  { unique: true, partialFilterExpression: { email: { $type: 'string' } } }
+);
 userSchema.index({ familyId: 1, generation: 1 });
 
 export const User = model<IUser>('User', userSchema);
