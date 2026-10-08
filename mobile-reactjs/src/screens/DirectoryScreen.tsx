@@ -132,6 +132,15 @@ const DirectoryScreen: React.FC = () => {
     setInviteModalVisible(true);
   };
 
+  const closeInviteModal = () => {
+    setInviteModalVisible(false);
+    setInviteCopied(false);
+    setInviteLink('');
+    setRelationshipNote('');
+    setRelationshipError('');
+    setInviteCreating(false);
+  };
+
   const generateInviteLink = async () => {
     const note = relationshipNote.trim();
     if (!note) {
@@ -395,10 +404,11 @@ const DirectoryScreen: React.FC = () => {
       {/* Invite Link Modal */}
       {inviteModalVisible && (
         <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-          <div style={{ background: colors.white, borderRadius: 16, minWidth: 300, maxWidth: 400, boxShadow: '0 2px 16px rgba(0,0,0,0.12)', padding: 24 }}>
-            <div style={{ display: 'flex', alignItems: 'center', marginBottom: 16, gap: 8 }}>
+          <div role="dialog" aria-modal="true" aria-labelledby="invite-modal-title" style={{ position: 'relative', background: colors.white, borderRadius: 16, minWidth: 300, maxWidth: 400, boxShadow: '0 2px 16px rgba(0,0,0,0.12)', padding: 24 }}>
+            <button type="button" aria-label="Close invitation dialog" onClick={closeInviteModal} style={{ position: 'absolute', top: 10, right: 10, width: 30, height: 30, display: 'grid', placeItems: 'center', padding: 0, border: 0, borderRadius: '50%', background: '#f2f2f2', color: colors.gray.dark, cursor: 'pointer' }}><X size={17} /></button>
+            <div style={{ display: 'flex', alignItems: 'center', marginBottom: 16, gap: 8, paddingRight: 24 }}>
               <UserPlus size={24} color={colors.primary} />
-              <h3 style={{ margin: 0, fontSize: 20, fontWeight: 700, color: colors.primary }}>Invite New Member</h3>
+              <h3 id="invite-modal-title" style={{ margin: 0, fontSize: 20, fontWeight: 700, color: colors.primary }}>Invite New Member</h3>
             </div>
             <p style={{ color: colors.gray.dark, fontSize: 14, marginBottom: 16 }}>
               Share this link with someone you'd like to invite to the Vakshesa Directory. The link is valid for 7 days.
@@ -485,14 +495,7 @@ const DirectoryScreen: React.FC = () => {
                 </button>
                 <div style={{ display: 'flex', gap: 8 }}>
                   <button
-                    onClick={() => {
-                      setInviteModalVisible(false);
-                      setInviteCopied(false);
-                      setInviteLink('');
-                      setRelationshipNote('');
-                      setRelationshipError('');
-                      setInviteCreating(false);
-                    }}
+                    onClick={closeInviteModal}
                     style={{
                       flex: 1,
                       padding: '12px 0',
