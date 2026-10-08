@@ -196,7 +196,7 @@ const AdminScreen: React.FC = () => {
               const isHouseOpen = openHouse === house;
               return <section key={house} style={{ marginBottom: 12, overflow: 'hidden', border: `1px solid ${colors.gray.border}`, borderRadius: 10, background: colors.white }}>
                 <button type="button" aria-expanded={isHouseOpen} onClick={() => setOpenHouse(isHouseOpen ? '' : house)} style={{ display: 'flex', width: '100%', alignItems: 'center', justifyContent: 'space-between', gap: 10, padding: '13px 14px', border: 0, background: '#eceef1', color: '#222', textAlign: 'left', font: 'inherit', cursor: 'pointer' }}>
-                  <span style={{ fontWeight: 700 }}>{house}</span>
+                  <span style={{ fontWeight: 700 }}>Invited from {house}</span>
                   <span style={{ display: 'flex', alignItems: 'center', gap: 8, color: colors.gray.dark, fontSize: 12 }}><span>{houseRequests.length} {houseRequests.length === 1 ? 'request' : 'requests'}</span><span aria-hidden="true" style={{ fontSize: 18, lineHeight: 1 }}>{isHouseOpen ? '⌄' : '›'}</span></span>
                 </button>
                 {isHouseOpen && <ul style={{ listStyle: 'none', padding: '10px 12px 0', margin: 0 }}>
@@ -223,7 +223,6 @@ const AdminScreen: React.FC = () => {
                       <div style={{ color: colors.gray.dark, fontSize: 13, wordBreak: 'break-word' }}>{applicant.email}</div>
                       <div style={{ marginTop: 6, display: 'flex', alignItems: 'center', gap: 8 }}>
                         <StatusPill status={request.status} />
-                        <span style={{ fontSize: 12, color: colors.gray.medium }}>{fmtDate(request.submittedAt)}</span>
                       </div>
                     </div>
                     {request.status === 'Pending' ? (
