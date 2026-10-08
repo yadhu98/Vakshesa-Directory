@@ -2,6 +2,7 @@ import React, { ChangeEvent, FormEvent, useCallback, useEffect, useState } from 
 import { Plus, X, Edit2, Trash2, Link as LinkIcon } from 'feather-icons-react';
 import AppHeader from '../components/AppHeader';
 import { announcementService, isAdminUser, userService } from '../services/api';
+import './AnnouncementsScreen.css';
 
 type TaggedUser = { _id: string; firstName: string; lastName: string; [key: string]: any };
 type Announcement = { _id: string; title?: string; content: string; url?: string; linkPreview?: { title: string; description: string; thumbnailUrl?: string }; images: { name: string; mimeType: string; data: string }[]; taggedUsers?: TaggedUser[]; taggedUserIds?: string[]; authorName: string; publishedAt: string; updatedAt: string };
@@ -28,6 +29,7 @@ const AnnouncementsScreen: React.FC = () => {
   const [profileMember, setProfileMember] = useState<TaggedUser | null>(null);
   const [profileLoading, setProfileLoading] = useState(false);
   const [profileError, setProfileError] = useState('');
+  const [expandedIds, setExpandedIds] = useState<string[]>([]);
 
   const load = useCallback(async () => {
     setLoading(true); setError('');
@@ -81,6 +83,9 @@ const AnnouncementsScreen: React.FC = () => {
       setProfileError(err?.response?.data?.message || 'Could not load this profile');
     } finally { setProfileLoading(false); }
   };
+  const toggleExpanded = (id: string) => {
+    setExpandedIds(current => current.includes(id) ? current.filter(itemId => itemId !== id) : [...current, id]);
+  };
 
   return <div style={{ minHeight: '100vh', background: '#f5f5f5', paddingBottom: 76 }}>
     <AppHeader title="Announcements" />
@@ -99,15 +104,27 @@ const AnnouncementsScreen: React.FC = () => {
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 8 }}>{tagged.map(user => <span key={user._id} style={{ background: '#eee', borderRadius: 18, padding: '5px 9px', fontSize: 12 }}>{user.firstName} {user.lastName} <button type="button" aria-label={`Remove ${user.firstName}`} onClick={() => setTagged(old => old.filter(entry => entry._id !== user._id))} style={{ border: 0, background: 'transparent', cursor: 'pointer' }}>×</button></span>)}</div>
         <button disabled={saving} type="submit" style={{ ...button, marginTop: 16, background: '#111', color: '#fff', width: '100%', opacity: saving ? .6 : 1 }}>{saving ? 'Saving…' : editing ? 'Save / Update' : 'Publish announcement'}</button>
       </form>}
-      {loading ? <div style={{ ...panel, textAlign: 'center', color: '#666' }}>Loading announcements…</div> : items.length === 0 ? <div style={{ ...panel, textAlign: 'center', color: '#666' }}>No announcements yet.</div> : items.map(item => <article key={item._id} style={panel}>
-        {admin && <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}><button aria-label="Edit announcement" onClick={() => openEdit(item)} style={{ ...button, background: '#f3f3f3', padding: 8 }}><Edit2 size={16} /></button><button aria-label="Delete announcement" onClick={() => remove(item)} style={{ ...button, background: '#fff0f0', color: '#a22', padding: 8 }}><Trash2 size={16} /></button></div>}
-        {item.title && <h2 style={{ margin: '4px 0 8px', fontSize: 19 }}>{item.title}</h2>}
-        <div style={{ color: '#666', fontSize: 12, marginBottom: 12 }}>{item.authorName} · {new Date(item.publishedAt).toLocaleString()}</div>
-        {item.content && <p style={{ whiteSpace: 'pre-wrap', lineHeight: 1.55, margin: '0 0 12px' }}>{item.content}</p>}
-        {!!item.images?.length && <div style={{ display: 'grid', gridTemplateColumns: item.images.length === 1 ? '1fr' : 'repeat(2, 1fr)', gap: 6, marginBottom: 12 }}>{item.images.map((image, index) => <button key={`${index}-${image.name}`} onClick={() => setLightbox(image.data)} style={{ padding: 0, border: 0, background: 'transparent', cursor: 'zoom-in' }}><img src={image.data} alt={image.name || 'Announcement attachment'} style={{ width: '100%', maxHeight: 340, objectFit: 'cover', borderRadius: 8 }} /></button>)}</div>}
-        {item.url && <a href={item.url} target="_blank" rel="noopener noreferrer" style={{ display: 'block', border: '1px solid #e4e4e4', borderRadius: 9, color: '#164e86', textDecoration: 'none', overflow: 'hidden' }}>{item.linkPreview?.thumbnailUrl && <img src={item.linkPreview.thumbnailUrl} alt="Video preview" style={{ display: 'block', width: '100%', maxHeight: 320, objectFit: 'cover', background: '#111' }} />}<div style={{ padding: 12, overflowWrap: 'anywhere' }}><div style={{ fontWeight: 600 }}>{item.linkPreview?.title || <><LinkIcon size={16} style={{ verticalAlign: 'middle', marginRight: 7 }} />{new URL(item.url).hostname}</>}</div>{item.linkPreview?.description && <div style={{ fontSize: 13, color: '#555', marginTop: 4 }}>{item.linkPreview.description}</div>}<div style={{ fontSize: 12, color: '#555', marginTop: 4 }}>{item.url}</div></div></a>}
-        {!!item.taggedUsers?.length && <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 6, marginTop: 12, color: '#555', fontSize: 13 }}><span>Tagged:</span>{item.taggedUsers.map(user => <button key={user._id} type="button" onClick={() => openTaggedProfile(user)} style={{ border: 0, padding: 0, background: 'transparent', color: '#164e86', textDecoration: 'underline', cursor: 'pointer', font: 'inherit' }}>{user.firstName} {user.lastName}</button>)}</div>}
-      </article>)}
+      {loading ? <div style={{ ...panel, textAlign: 'center', color: '#666' }}>Loading announcements…</div> : items.length === 0 ? <div style={{ ...panel, textAlign: 'center', color: '#666' }}>No announcements yet.</div> : items.map(item => {
+        const isExpanded = expandedIds.includes(item._id);
+        const canCollapse = item.content.length > 190;
+        return <article key={item._id} className="announcement-card">
+        <div className="announcement-card-header">
+          <h2 className="announcement-card-title">{item.title || 'Announcement'}</h2>
+          {admin && <div style={{ display: 'flex', flex: '0 0 auto', gap: 5 }}><button aria-label="Edit announcement" onClick={() => openEdit(item)} style={{ ...button, background: '#f3f3f3', padding: 7 }}><Edit2 size={15} /></button><button aria-label="Delete announcement" onClick={() => remove(item)} style={{ ...button, background: '#fff0f0', color: '#a22', padding: 7 }}><Trash2 size={15} /></button></div>}
+        </div>
+        <div className="announcement-card-meta">Posted by {item.authorName} · {new Date(item.publishedAt).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}</div>
+        {item.content && <>
+          <p className={`announcement-card-content${canCollapse && !isExpanded ? ' announcement-card-content-collapsed' : ''}`}>{item.content}</p>
+          {canCollapse && <button type="button" className="announcement-read-more" onClick={() => toggleExpanded(item._id)}>{isExpanded ? 'Show less' : 'Read more'}</button>}
+        </>}
+        {!!item.images?.length && <div className="announcement-image-strip">{item.images.map((image, index) => <button className="announcement-image-thumb" key={`${index}-${image.name}`} onClick={() => setLightbox(image.data)} aria-label={`Open image ${index + 1}: ${image.name || 'announcement attachment'}`}><img src={image.data} alt={image.name || 'Announcement attachment'} /></button>)}</div>}
+        {item.url && <a className="announcement-link-preview" href={item.url} target="_blank" rel="noopener noreferrer">
+          {item.linkPreview?.thumbnailUrl && <img className="announcement-link-thumbnail" src={item.linkPreview.thumbnailUrl} alt="" />}
+          <span className="announcement-link-copy"><span className="announcement-link-title">{item.linkPreview?.title || <><LinkIcon size={14} style={{ verticalAlign: 'middle', marginRight: 5 }} />{new URL(item.url).hostname}</>}</span>{item.linkPreview?.description && <span className="announcement-link-description">{item.linkPreview.description}</span>}<span className="announcement-link-url">{item.url}</span></span>
+        </a>}
+        {!!item.taggedUsers?.length && <div className="announcement-tags"><span style={{ flex: '0 0 auto', color: '#666', fontSize: 11 }}>Tagged:</span>{item.taggedUsers.map(user => <button className="announcement-tag-chip" key={user._id} type="button" onClick={() => openTaggedProfile(user)}>{user.firstName} {user.lastName}</button>)}</div>}
+      </article>;
+      })}
     </main>
     {lightbox && <button aria-label="Close image" onClick={() => setLightbox('')} style={{ position: 'fixed', inset: 0, zIndex: 500, background: 'rgba(0,0,0,.88)', border: 0, display: 'grid', placeItems: 'center', cursor: 'zoom-out' }}><img src={lightbox} alt="Expanded announcement" style={{ maxWidth: '95vw', maxHeight: '92vh', objectFit: 'contain' }} /></button>}
     {profileMember && <div role="presentation" onClick={() => { setProfileMember(null); setProfileError(''); }} style={{ position: 'fixed', inset: 0, zIndex: 600, background: 'rgba(0,0,0,.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
