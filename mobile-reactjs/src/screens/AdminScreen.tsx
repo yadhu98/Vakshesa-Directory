@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Check, X, ChevronRight, Users } from 'feather-icons-react';
 import AppHeader from '../components/AppHeader';
 import { adminService } from '../services/api';
+import './AdminScreen.css';
 
 const colors = {
   primary: '#000000',
@@ -140,7 +141,7 @@ const AdminScreen: React.FC = () => {
     <div style={{ background: colors.gray.light, minHeight: '100vh', paddingBottom: 70 }}>
       <AppHeader title="Admin" />
       <div style={{ padding: 16, maxWidth: 480, margin: '0 auto' }}>
-        <div style={{ display: 'flex', gap: 8, overflowX: 'auto', marginBottom: 16, paddingBottom: 4 }}>
+        <div className="admin-filter-scroller" style={{ display: 'flex', gap: 8, overflowX: 'auto', marginBottom: 22, paddingBottom: 12 }}>
           {FILTERS.map(item => {
             const isSelected = filter === item.key;
             return (

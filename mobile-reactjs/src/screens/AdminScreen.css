@@ -1,0 +1,17 @@
+.admin-filter-scroller {
+  scrollbar-width: thin;
+  scrollbar-color: #b8b8b8 transparent;
+}
+
+.admin-filter-scroller::-webkit-scrollbar {
+  height: 4px;
+}
+
+.admin-filter-scroller::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.admin-filter-scroller::-webkit-scrollbar-thumb {
+  border-radius: 4px;
+  background: #b8b8b8;
+}
