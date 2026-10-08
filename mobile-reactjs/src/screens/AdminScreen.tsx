@@ -55,6 +55,8 @@ const fmtDate = (value?: string) => {
   });
 };
 
+const inviterHouseForRequest = (request: RegistrationRequest) => request.invitedBy?.house?.trim() || 'Inviter house unavailable';
+
 const Detail = ({ label, value }: { label: string; value?: string | null }) => (
   value ? (
     <div style={{ display: 'flex', gap: 8, fontSize: 13, marginTop: 4 }}>
@@ -92,7 +94,9 @@ const AdminScreen: React.FC = () => {
     setError('');
     try {
       const res = await adminService.getRegistrationRequests(activeFilter);
-      setRequests(res.data?.requests || []);
+      const loadedRequests: RegistrationRequest[] = res.data?.requests || [];
+      setRequests(loadedRequests);
+      setOpenHouse(Array.from(new Set(loadedRequests.map(inviterHouseForRequest))).sort((a, b) => a.localeCompare(b))[0] || '');
     } catch (err: any) {
       setError(err?.response?.data?.message || 'Could not load registration requests');
       setRequests([]);
@@ -104,15 +108,11 @@ const AdminScreen: React.FC = () => {
   useEffect(() => { load(filter); }, [filter, load]);
 
   const requestsByInviterHouse = requests.reduce<Record<string, RegistrationRequest[]>>((groups, request) => {
-    const house = request.invitedBy?.house?.trim() || 'House not specified';
+    const house = inviterHouseForRequest(request);
     (groups[house] ||= []).push(request);
     return groups;
   }, {});
   const houseGroups = Object.entries(requestsByInviterHouse).sort(([a], [b]) => a.localeCompare(b));
-  useEffect(() => {
-    if (houseGroups.length && !houseGroups.some(([house]) => house === openHouse)) setOpenHouse(houseGroups[0][0]);
-  }, [requests, openHouse]);
-
   const handleReview = async (request: RegistrationRequest, action: 'approve' | 'reject') => {
     const name = `${request.applicant?.firstName || ''} ${request.applicant?.lastName || ''}`.trim() || 'this applicant';
     let reason: string | undefined;
@@ -204,6 +204,9 @@ const AdminScreen: React.FC = () => {
               const applicant = request.applicant || {};
               const expanded = expandedId === request.id;
               const fullName = `${applicant.firstName || ''} ${applicant.lastName || ''}`.trim() || 'Unknown applicant';
+              const inviterName = request.invitedBy?.name;
+              const inviterHouse = request.invitedBy?.house?.trim();
+              const inviterDetail = inviterName ? `${inviterName}${inviterHouse ? ` (${inviterHouse})` : ''}` : undefined;
               const busy = busyId === request.id;
               return (
                 <li key={request.id} style={{ background: colors.white, marginBottom: 12, borderRadius: 8, padding: 16, boxShadow: '0 1px 4px rgba(0,0,0,0.04)', border: `1px solid ${colors.gray.border}` }}>
@@ -267,7 +270,7 @@ const AdminScreen: React.FC = () => {
                       <Detail label="Gender" value={applicant.gender} />
                       <Detail label="Occupation" value={applicant.occupation} />
                       <Detail label="Address" value={applicant.address} />
-                      <Detail label="Invited by" value={request.invitedBy?.name} />
+                      <Detail label="Inviter" value={inviterDetail} />
                       {request.relationshipNote && <Detail label="Relationship note" value={request.relationshipNote} />}
                       <Detail label="Reviewed by" value={request.reviewedBy?.name} />
                       {request.reviewedAt && <Detail label="Reviewed" value={fmtDate(request.reviewedAt)} />}
@@ -288,4 +291,3 @@ const AdminScreen: React.FC = () => {
 };
 
 export default AdminScreen;
-

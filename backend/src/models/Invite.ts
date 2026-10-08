@@ -4,6 +4,7 @@ const inviteSchema = new Schema({
   token: { type: String, required: true, unique: true, index: true },
   createdBy: { type: String, required: true, index: true },
   createdByName: { type: String, required: true },
+  createdByHouse: { type: String, trim: true },
   familyId: { type: String, required: true, index: true },
   familyName: { type: String, required: true },
   email: { type: String, lowercase: true, trim: true },

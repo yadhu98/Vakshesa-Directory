@@ -45,6 +45,7 @@ export const createInviteToken = async (req: AuthRequest, res: Response): Promis
       token,
       createdBy: userId,
       createdByName: `${user.firstName} ${user.lastName}`.trim(),
+      createdByHouse: user.house || null,
       familyId: user.familyId,
       familyName,
       email,

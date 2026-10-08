@@ -124,6 +124,7 @@ export const register = async (req: Request, res: Response): Promise<void> => {
       inviteId: String(invitation._id),
       familyId,
       invitedBy: String(invitation.createdBy),
+      inviterHouse: inviter.house || (invitation as any).createdByHouse || undefined,
       relationshipNote: (invitation as any).relationshipNote || undefined,
       status: 'Pending',
       submittedAt: new Date(),

@@ -5,6 +5,7 @@ const registrationRequestSchema = new Schema({
   inviteId: { type: String, required: true, unique: true, index: true },
   familyId: { type: String, required: true, index: true },
   invitedBy: { type: String, required: true },
+  inviterHouse: { type: String, trim: true },
   relationshipNote: { type: String, trim: true, maxlength: 1000 },
   status: { type: String, enum: ['Pending', 'Approved', 'Rejected'], default: 'Pending', index: true },
   submittedAt: { type: Date, default: Date.now },
