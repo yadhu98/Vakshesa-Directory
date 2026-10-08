@@ -112,11 +112,11 @@ const CalendarScreen: React.FC = () => {
             const isToday = day.key === localDateKey(today);
             const selected = day.key === selectedDate;
             return <button type="button" key={day.key} className={`calendar-day${isToday ? ' is-today' : ''}${selected ? ' is-selected' : ''}${eventCount ? ' has-events' : ''}`} aria-label={`${formatDate(day.key, { dateStyle: 'full' })}${eventCount ? `, ${eventCount} ${eventCount === 1 ? 'event' : 'events'}` : ''}`} aria-pressed={selected} onClick={() => setSelectedDate(day.key)}>
-              <span>{day.day}</span>{eventCount > 0 && <span className="calendar-event-dots" aria-label={`${eventCount} events`}>{Array.from({ length: Math.min(eventCount, 3) }, (_, dot) => <i key={dot} />)}{eventCount > 3 && <b>+</b>}</span>}
+              <span>{day.day}</span>
             </button>;
           })}
         </div>
-        <div className="calendar-legend"><span className="calendar-legend-dot" /> Event scheduled</div>
+        <div className="calendar-legend"><span className="calendar-legend-swatch" /> Event scheduled</div>
       </section>
 
       <section className="calendar-events" aria-live="polite">
