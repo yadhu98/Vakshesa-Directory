@@ -2,10 +2,10 @@
 import axios from 'axios';
 
 // API Base URL Configuration - supports both local and production
-const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 
-  (window.location.hostname === 'localhost' 
-    ? 'http://localhost:5001/api' 
-    : 'https://vakshesa-directory.onrender.com/api');
+const isLocalHost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+const API_BASE_URL = isLocalHost
+  ? 'http://localhost:5001/api'
+  : process.env.REACT_APP_API_BASE_URL || 'https://vakshesa-directory.onrender.com/api';
 
 console.log('API Base URL:', API_BASE_URL); // Debug log
 

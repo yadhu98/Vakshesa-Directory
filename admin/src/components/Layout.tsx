@@ -19,6 +19,7 @@ import {
   Lock,
   ClipboardCheck,
   ShieldCheck,
+  Megaphone,
 } from 'lucide-react';
 
 export const Layout: React.FC<{ children: ReactNode }> = ({ children }) => {
@@ -87,6 +88,12 @@ export const Layout: React.FC<{ children: ReactNode }> = ({ children }) => {
             label="Events"
             icon={<Calendar size={20} />}
             onClick={() => navigate('/events')}
+            collapsed={!isSidebarOpen}
+          />
+          <NavItem
+            label="Announcements"
+            icon={<Megaphone size={20} />}
+            onClick={() => navigate('/announcements')}
             collapsed={!isSidebarOpen}
           />
           <NavItem

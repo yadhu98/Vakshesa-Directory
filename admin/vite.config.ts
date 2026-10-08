@@ -4,6 +4,7 @@ import react from '@vitejs/plugin-react';
 export default defineConfig({
   plugins: [react()],
   resolve: {
+    extensions: ['.tsx', '.ts', '.jsx', '.js', '.mjs', '.json'],
     alias: {
       '@': '/src',
       '@components': '/src/components',
@@ -14,7 +15,8 @@ export default defineConfig({
     },
   },
   server: {
-    port: 3001,
+    port: 3002,
+    strictPort: true,
     open: true,
   },
   build: {

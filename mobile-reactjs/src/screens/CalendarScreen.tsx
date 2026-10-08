@@ -47,11 +47,24 @@ const CalendarScreen: React.FC = () => {
 
   useEffect(() => {
     let active = true;
-    announcementService.list()
-      .then(response => { if (active) setAnnouncements(response.data?.announcements || []); })
-      .catch((err: any) => { if (active) setError(err?.response?.data?.message || 'Could not load calendar events'); })
-      .finally(() => { if (active) setLoading(false); });
-    return () => { active = false; };
+    const loadAnnouncements = () => {
+      if (document.visibilityState === 'hidden') return;
+      setLoading(true);
+      setError('');
+      announcementService.list()
+        .then(response => { if (active) setAnnouncements(response.data?.announcements || []); })
+        .catch((err: any) => { if (active) setError(err?.response?.data?.message || 'Could not load calendar events'); })
+        .finally(() => { if (active) setLoading(false); });
+    };
+
+    loadAnnouncements();
+    window.addEventListener('focus', loadAnnouncements);
+    document.addEventListener('visibilitychange', loadAnnouncements);
+    return () => {
+      active = false;
+      window.removeEventListener('focus', loadAnnouncements);
+      document.removeEventListener('visibilitychange', loadAnnouncements);
+    };
   }, []);
 
   const eventMap = useMemo(() => {

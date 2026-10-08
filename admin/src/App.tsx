@@ -18,6 +18,7 @@ import StallAudit from '@pages/StallAudit';
 import CarnivalAnalytics from '@pages/CarnivalAnalytics';
 import PendingRequests from '@pages/PendingRequests';
 import AccessManagement from '@pages/AccessManagement';
+import AnnouncementBulkUpload from '@pages/AnnouncementBulkUpload';
 
 const ProtectedRoute: React.FC<{ element: JSX.Element }> = ({ element }) => {
   const { isAuthenticated } = useAuth();
@@ -34,6 +35,7 @@ function App() {
         <Route path="/users" element={<ProtectedRoute element={<Users />} />} />
         <Route path="/pending-requests" element={<ProtectedRoute element={<PendingRequests />} />} />
         <Route path="/access-management" element={<ProtectedRoute element={<AccessManagement />} />} />
+        <Route path="/announcements" element={<ProtectedRoute element={<AnnouncementBulkUpload />} />} />
         <Route path="/families" element={<ProtectedRoute element={<Families />} />} />
         <Route path="/stalls" element={<ProtectedRoute element={<Stalls />} />} />
         <Route path="/leaderboard" element={<ProtectedRoute element={<Leaderboard />} />} />
