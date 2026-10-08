@@ -36,7 +36,7 @@ export const listRegistrationRequests = async (req: AuthRequest, res: Response):
         reviewedBy: reviewer ? { id: reviewer._id, name: `${reviewer.firstName} ${reviewer.lastName}`.trim() } : null,
         rejectionReason: item.rejectionReason,
         relationshipNote: item.relationshipNote || invite?.relationshipNote || null,
-        invitedBy: inviter ? { id: inviter._id, name: `${inviter.firstName} ${inviter.lastName}`.trim() } : null,
+        invitedBy: inviter ? { id: inviter._id, name: `${inviter.firstName} ${inviter.lastName}`.trim(), house: inviter.house || null } : null,
         applicant: applicantView(user),
       };
     }));

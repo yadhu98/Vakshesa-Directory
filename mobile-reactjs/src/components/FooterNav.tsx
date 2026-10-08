@@ -89,7 +89,7 @@ const FooterNav: React.FC = () => {
             key={item.path}
             type="button"
             onClick={() => isMoreItem ? setShowMore(value => !value) : navigate(item.path)}
-            aria-label={isMoreItem ? 'More navigation options' : item.label}
+            aria-label={isMoreItem ? `More navigation options${pendingCount ? `, ${pendingCount} pending request${pendingCount === 1 ? '' : 's'}` : ''}` : item.label}
             aria-expanded={isMoreItem ? showMore : undefined}
             style={{
               flex: 1,
@@ -110,6 +110,7 @@ const FooterNav: React.FC = () => {
           >
             <span style={{ position: 'relative', lineHeight: 0 }}>
               {item.icon}
+              {isMoreItem && pendingCount > 0 && <span aria-hidden="true" style={{ position: 'absolute', top: -4, right: -7, width: 9, height: 9, border: '2px solid #fff', borderRadius: '50%', background: '#d32f2f' }} />}
             </span>
             {item.label}
           </button>

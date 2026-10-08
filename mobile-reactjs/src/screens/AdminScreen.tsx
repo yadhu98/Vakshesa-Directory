@@ -42,7 +42,7 @@ interface RegistrationRequest {
   reviewedAt?: string;
   reviewedBy?: { id: string; name: string } | null;
   rejectionReason?: string;
-  invitedBy?: { id: string; name: string } | null;
+  invitedBy?: { id: string; name: string; house?: string | null } | null;
   relationshipNote?: string | null;
   applicant?: Applicant | null;
 }
@@ -85,6 +85,7 @@ const AdminScreen: React.FC = () => {
   const [error, setError] = useState<string>('');
   const [busyId, setBusyId] = useState<string>('');
   const [expandedId, setExpandedId] = useState<string>('');
+  const [openHouse, setOpenHouse] = useState<string>('');
 
   const load = useCallback(async (activeFilter: FilterKey) => {
     setLoading(true);
@@ -101,6 +102,16 @@ const AdminScreen: React.FC = () => {
   }, []);
 
   useEffect(() => { load(filter); }, [filter, load]);
+
+  const requestsByInviterHouse = requests.reduce<Record<string, RegistrationRequest[]>>((groups, request) => {
+    const house = request.invitedBy?.house?.trim() || 'House not specified';
+    (groups[house] ||= []).push(request);
+    return groups;
+  }, {});
+  const houseGroups = Object.entries(requestsByInviterHouse).sort(([a], [b]) => a.localeCompare(b));
+  useEffect(() => {
+    if (houseGroups.length && !houseGroups.some(([house]) => house === openHouse)) setOpenHouse(houseGroups[0][0]);
+  }, [requests, openHouse]);
 
   const handleReview = async (request: RegistrationRequest, action: 'approve' | 'reject') => {
     const name = `${request.applicant?.firstName || ''} ${request.applicant?.lastName || ''}`.trim() || 'this applicant';
@@ -180,8 +191,16 @@ const AdminScreen: React.FC = () => {
             <div>{filter === 'all' ? 'No' : `No ${filter.toLowerCase()}`} requests.</div>
           </div>
         ) : (
-          <ul style={{ listStyle: 'none', padding: 0 }}>
-            {requests.map(request => {
+          <div>
+            {houseGroups.map(([house, houseRequests]) => {
+              const isHouseOpen = openHouse === house;
+              return <section key={house} style={{ marginBottom: 12, overflow: 'hidden', border: `1px solid ${colors.gray.border}`, borderRadius: 10, background: colors.white }}>
+                <button type="button" aria-expanded={isHouseOpen} onClick={() => setOpenHouse(isHouseOpen ? '' : house)} style={{ display: 'flex', width: '100%', alignItems: 'center', justifyContent: 'space-between', gap: 10, padding: '13px 14px', border: 0, background: '#eceef1', color: '#222', textAlign: 'left', font: 'inherit', cursor: 'pointer' }}>
+                  <span style={{ fontWeight: 700 }}>{house}</span>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 8, color: colors.gray.dark, fontSize: 12 }}><span>{houseRequests.length} {houseRequests.length === 1 ? 'request' : 'requests'}</span><span aria-hidden="true" style={{ fontSize: 18, lineHeight: 1 }}>{isHouseOpen ? '⌄' : '›'}</span></span>
+                </button>
+                {isHouseOpen && <ul style={{ listStyle: 'none', padding: '10px 12px 0', margin: 0 }}>
+                {houseRequests.map(request => {
               const applicant = request.applicant || {};
               const expanded = expandedId === request.id;
               const fullName = `${applicant.firstName || ''} ${applicant.lastName || ''}`.trim() || 'Unknown applicant';
@@ -257,8 +276,11 @@ const AdminScreen: React.FC = () => {
                   )}
                 </li>
               );
+                })}
+                </ul>}
+              </section>;
             })}
-          </ul>
+          </div>
         )}
       </div>
     </div>
@@ -266,5 +288,4 @@ const AdminScreen: React.FC = () => {
 };
 
 export default AdminScreen;
-
 
