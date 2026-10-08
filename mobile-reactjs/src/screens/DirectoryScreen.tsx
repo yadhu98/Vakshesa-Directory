@@ -142,7 +142,9 @@ const DirectoryScreen: React.FC = () => {
     setInviteCreating(true);
     try {
       const response = await inviteService.createInvite({ relationshipNote: note });
-      setInviteLink(response.data.inviteLink);
+      const token = response.data?.token || (response.data?.inviteLink ? new URL(response.data.inviteLink, window.location.origin).searchParams.get('invite') : null);
+      if (!token) throw new Error('The server did not return an invitation token');
+      setInviteLink(`${window.location.origin}/register?invite=${encodeURIComponent(token)}`);
     } catch (error: any) {
       console.error('Failed to generate invite:', error);
       const errorMessage = error?.response?.data?.message || 'Failed to generate invite link. Please try again.';

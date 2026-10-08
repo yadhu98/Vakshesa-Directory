@@ -9,6 +9,7 @@ import { db } from './config/storage';
 import { connectDB } from './config/database';
 import { errorHandler } from './middleware/auth';
 import authRoutes from './routes/auth';
+import announcementRoutes from './routes/announcements';
 import userRoutes from './routes/user';
 import pointsRoutes from './routes/points';
 import adminRoutes from './routes/admin';
@@ -60,6 +61,7 @@ app.use(express.urlencoded({ limit: '10mb', extended: true }));
 
 // Routes
 app.use('/api/auth', authRoutes);
+app.use('/api/announcements', announcementRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/points', pointsRoutes);
 app.use('/api/admin', adminRoutes);
@@ -160,6 +162,40 @@ const initializeSuperAdmin = async () => {
   }
 };
 
+const initializeLocalTestUser = async () => {
+  if (process.env.NODE_ENV === 'production') return;
+  try {
+    const phone = '9916981907';
+    const superAdmin = await db.findOne('users', { email: 'admin@vakshesa.com' });
+    if (!superAdmin?.familyId) {
+      console.warn('⚠️ Local test user was not created because the default family is unavailable');
+      return;
+    }
+    const { hashPassword } = await import('./utils/auth');
+    const password = await hashPassword('123456');
+    const existing = await db.findOne('users', { phone });
+    const testUser = {
+      firstName: 'Harikrishnan',
+      lastName: 'Test',
+      phone,
+      countryCode: '+91',
+      password,
+      role: 'user',
+      isSuperUser: false,
+      membershipStatus: 'Approved',
+      privacySettings: { ...DEFAULT_PRIVACY_SETTINGS },
+      familyId: superAdmin.familyId,
+      house: 'Mankada',
+      isActive: true,
+    };
+    if (existing) await db.updateOne('users', { _id: existing._id }, testUser);
+    else await db.create('users', testUser);
+    console.log(`✅ Local regular test user ready (${phone})`);
+  } catch (error) {
+    console.error('❌ Failed to initialize local test user:', error);
+  }
+};
+
 const migrateLegacyAccessDefaults = async () => {
   const users = await db.find('users', {});
   for (const user of users) {
@@ -184,6 +220,7 @@ const startServer = async () => {
     
     // Initialize super admin
     await initializeSuperAdmin();
+    await initializeLocalTestUser();
     
     // Initialize WebSocket server
     wsService.initialize(server);

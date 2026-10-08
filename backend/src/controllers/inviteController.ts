@@ -4,6 +4,15 @@ import { AuthRequest } from '../middleware/auth';
 import crypto from 'crypto';
 import { recordAuditEvent } from '../services/auditService';
 
+const frontendOrigin = (req: AuthRequest): string => {
+  if (process.env.FRONTEND_URL) return process.env.FRONTEND_URL.replace(/\/$/, '');
+  const requestUrl = req.get('origin') || req.get('referer');
+  if (requestUrl) {
+    try { return new URL(requestUrl).origin; } catch {}
+  }
+  return process.env.NODE_ENV === 'production' ? '' : 'http://localhost:3000';
+};
+
 export const createInviteToken = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const userId = req.user?.id;
@@ -57,7 +66,7 @@ export const createInviteToken = async (req: AuthRequest, res: Response): Promis
       familyName,
       relationshipNote,
       expiresAt,
-      inviteLink: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/register?invite=${token}`,
+      inviteLink: `${frontendOrigin(req)}/register?invite=${token}`,
     });
   } catch (error: any) {
     res.status(500).json({ message: error.message });
@@ -105,7 +114,7 @@ export const getMyInvites = async (req: AuthRequest, res: Response): Promise<voi
       relationshipNote: invite.relationshipNote || null,
       inviteLink: invite.used || invite.revokedAt || new Date(invite.expiresAt).getTime() <= Date.now()
         ? null
-        : `${process.env.FRONTEND_URL || 'http://localhost:3000'}/register?invite=${invite.token}`,
+        : `${frontendOrigin(req)}/register?invite=${invite.token}`,
     })) });
   } catch (error: any) {
     res.status(500).json({ message: error.message });

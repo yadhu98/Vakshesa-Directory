@@ -72,7 +72,8 @@ export const shopkeeperMiddleware = (req: AuthRequest, res: Response, next: Next
 
 export const errorHandler = (err: any, req: Request, res: Response, next: NextFunction): void => {
   console.error('Error:', err);
-  res.status(err.status || 500).json({
+  const uploadError = err instanceof Error && (err.name === 'MulterError' || err.message === 'Images must be JPG, PNG, or WEBP');
+  res.status(err.status || (uploadError ? 400 : 500)).json({
     message: err.message || 'Internal server error',
     ...(process.env.NODE_ENV === 'development' && { stack: err.stack }),
   });

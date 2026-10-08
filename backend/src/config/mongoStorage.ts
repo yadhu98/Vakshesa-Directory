@@ -15,6 +15,7 @@ import { StallVisit } from '../models/StallVisit';
 import { Invite } from '../models/Invite';
 import { RegistrationRequest } from '../models/RegistrationRequest';
 import { AuditEvent } from '../models/AuditEvent';
+import { Announcement } from '../models/Announcement';
 
 // Storage interface to match in-memory storage
 interface StorageRecord {
@@ -44,6 +45,7 @@ class MongoDBStorage {
       invitetokens: Invite as any,
       registrationrequests: RegistrationRequest as any,
       auditevents: AuditEvent as any,
+      announcements: Announcement as any,
       // For collections without models, we'll create them dynamically
     };
   }

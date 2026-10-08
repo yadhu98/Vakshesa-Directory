@@ -9,6 +9,7 @@ import RegisterScreen from './screens/RegisterScreen';
 import ChangePasswordScreen from './screens/ChangePasswordScreen';
 import EnhancedProfileScreen from './screens/EnhancedProfileScreen';
 import AdminScreen from './screens/AdminScreen';
+import AnnouncementsScreen from './screens/AnnouncementsScreen';
 import FooterNav from './components/FooterNav';
 import { isAdminUser } from './services/api';
 
@@ -53,6 +54,10 @@ const AppRoutes: React.FC = () => {
               <DirectoryScreen />
             </ProtectedRoute>
           } 
+        />
+        <Route
+          path="/announcements"
+          element={<ProtectedRoute><AnnouncementsScreen /></ProtectedRoute>}
         />
         <Route 
           path="/edit-profile" 

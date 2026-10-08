@@ -116,6 +116,15 @@ export const leaderboardService = {
     axiosInstance.get('/users/leaderboard', { params: { limit } }),
 };
 
+export const announcementService = {
+  list: () => axiosInstance.get('/announcements'),
+  save: (data: FormData, id?: string) => axiosInstance.request({
+    method: id ? 'put' : 'post', url: id ? `/announcements/${id}` : '/announcements', data,
+    headers: { 'Content-Type': 'multipart/form-data' },
+  }),
+  remove: (id: string) => axiosInstance.delete(`/announcements/${id}`),
+};
+
 export const api = axiosInstance;
 
 export default axiosInstance;

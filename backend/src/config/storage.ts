@@ -20,6 +20,7 @@ class InMemoryStorage {
       tokens: new Map(),
       transactions: new Map(),
       stallvisits: new Map(),
+      announcements: new Map(),
     };
   }
 

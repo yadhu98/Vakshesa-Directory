@@ -4,8 +4,17 @@ import { Link, useLocation } from 'react-router-dom';
 import { Book, User, Shield } from 'feather-icons-react';
 import { adminService, isAdminUser } from '../services/api';
 
+const BullhornIcon = () => (
+  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M3 10v4h3l12 5V5L6 10H3z" />
+    <path d="M6 14l1.5 5h3L9 15" />
+    <path d="M21 9v6" />
+  </svg>
+);
+
 const baseItems = [
   { label: 'Directory', path: '/directory', icon: <Book size={22} /> },
+  { label: 'Announcements', path: '/announcements', icon: <BullhornIcon /> },
   { label: 'My Profile', path: '/edit-profile', icon: <User size={22} /> },
 ];
 
@@ -37,7 +46,7 @@ const FooterNav: React.FC = () => {
     };
   }, [location.pathname]);
 
-  const navItems = isAdmin ? [baseItems[0], adminItem, baseItems[1]] : baseItems;
+  const navItems = isAdmin ? [baseItems[0], adminItem, ...baseItems.slice(1)] : baseItems;
 
   return (
     <nav style={{
