@@ -1,0 +1,17 @@
+.directory-house-filter-scroller {
+  scrollbar-width: thin;
+  scrollbar-color: #b8b8b8 transparent;
+}
+
+.directory-house-filter-scroller::-webkit-scrollbar {
+  height: 4px;
+}
+
+.directory-house-filter-scroller::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.directory-house-filter-scroller::-webkit-scrollbar-thumb {
+  border-radius: 4px;
+  background: #b8b8b8;
+}

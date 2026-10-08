@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { Search, ChevronRight, Phone, Mail, UserPlus, Copy, Check, X } from 'feather-icons-react';
 import AppHeader from '../components/AppHeader';
 import { userService, inviteService, isAdminUser } from '../services/api';
+import './DirectoryScreen.css';
 
 // Shared API base URL logic lives in services/api.ts — do not hardcode a
 // different default here or invites will hit production while auth hits local
@@ -195,7 +196,7 @@ const DirectoryScreen: React.FC = () => {
         </div>
 
         {/* House Filter Chips */}
-        <div style={{ display: 'flex', gap: 8, overflowX: 'auto', marginBottom: 16, paddingBottom: 4 }}>
+        <div className="directory-house-filter-scroller" style={{ display: 'flex', gap: 8, overflowX: 'auto', marginBottom: 22, paddingBottom: 12 }}>
           {houses.map(house => {
             const isSelected = selectedHouse === house;
             return (
