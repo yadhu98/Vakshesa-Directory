@@ -58,7 +58,12 @@ const AnnouncementsScreen: React.FC = () => {
     form.append('taggedUserIds', JSON.stringify(tagged.map(user => user._id)));
     form.append('existingImageIndexes', JSON.stringify(keptImages.map(image => editing?.images.findIndex(original => original.data === image.data)).filter((index): index is number => index !== undefined && index >= 0)));
     images.forEach(file => form.append('images', file));
-    try { await announcementService.save(form, editing?._id); setEditing(null); setFormVisible(false); await load(); }
+    try {
+      await announcementService.save(form, editing?._id);
+      if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+      setEditing(null); setFormVisible(false); await load();
+      document.getElementById('root')?.scrollTo({ top: 0, behavior: 'smooth' });
+    }
     catch (err: any) { setError(err?.response?.data?.message || 'Could not save announcement'); }
     finally { setSaving(false); }
   };
@@ -125,7 +130,7 @@ const AnnouncementsScreen: React.FC = () => {
   </div>;
 };
 
-const inputStyle: React.CSSProperties = { display: 'block', boxSizing: 'border-box', width: '100%', marginTop: 6, padding: '10px 11px', border: '1px solid #ccc', borderRadius: 8, font: 'inherit', fontSize: 14 };
+const inputStyle: React.CSSProperties = { display: 'block', boxSizing: 'border-box', width: '100%', marginTop: 6, padding: '10px 11px', border: '1px solid #ccc', borderRadius: 8, font: 'inherit', fontSize: 16 };
 const thumbStyle: React.CSSProperties = { width: 76, height: 66, objectFit: 'cover', borderRadius: 6 };
 const removePill: React.CSSProperties = { position: 'absolute', top: -6, right: -6, border: 0, background: '#222', color: '#fff', borderRadius: 12, width: 22, height: 22, display: 'grid', placeItems: 'center', cursor: 'pointer' };
 

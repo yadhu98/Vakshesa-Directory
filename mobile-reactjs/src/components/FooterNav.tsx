@@ -1,5 +1,6 @@
 
 import React, { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Link, useLocation } from 'react-router-dom';
 import { Book, User, Shield } from 'feather-icons-react';
 import { adminService, isAdminUser } from '../services/api';
@@ -48,7 +49,7 @@ const FooterNav: React.FC = () => {
 
   const navItems = isAdmin ? [baseItems[0], adminItem, ...baseItems.slice(1)] : baseItems;
 
-  return (
+  return createPortal((
     <nav style={{
       position: 'fixed',
       left: 0,
@@ -104,7 +105,7 @@ const FooterNav: React.FC = () => {
         );
       })}
     </nav>
-  );
+  ), document.body);
 };
 
 export default FooterNav;
