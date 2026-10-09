@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { authService } from '../services/api';
 
@@ -20,26 +20,56 @@ const LoginScreen: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [playingIntro, setPlayingIntro] = useState(false);
   const [error, setError] = useState('');
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const pendingCredentials = useRef<{ email: string; password: string } | null>(null);
+  const loginInProgress = useRef(false);
 
-  const handleLogin = async (e: React.FormEvent) => {
+  const completeLogin = async () => {
+    const credentials = pendingCredentials.current;
+    if (!credentials || loginInProgress.current) return;
+    loginInProgress.current = true;
+    pendingCredentials.current = null;
+    if (videoRef.current) {
+      videoRef.current.pause();
+      videoRef.current.currentTime = 0;
+      videoRef.current.load();
+    }
+    setError('');
+    setLoading(true);
+    setPlayingIntro(false);
+    try {
+      await authService.login(credentials.email, credentials.password);
+      navigate('/directory', { replace: true });
+    } catch (err: any) {
+      setError(err?.response?.data?.message || 'Login failed');
+    } finally {
+      setLoading(false);
+      loginInProgress.current = false;
+    }
+  };
+
+  const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    
+
+    if (loading || playingIntro || pendingCredentials.current || loginInProgress.current) return;
     if (!email || !password) {
       setError('Please fill in all fields');
       return;
     }
 
     setError('');
-    setLoading(true);
-    try {
-      await authService.login(email, password);
-      navigate('/directory', { replace: true });
-    } catch (err: any) {
-      setError(err?.response?.data?.message || 'Login failed');
-    } finally {
-      setLoading(false);
+    pendingCredentials.current = { email, password };
+    setPlayingIntro(true);
+    const video = videoRef.current;
+    if (!video) {
+      void completeLogin();
+      return;
     }
+
+    video.currentTime = 0;
+    video.play().catch(() => { void completeLogin(); });
   };
 
   return (
@@ -51,25 +81,19 @@ const LoginScreen: React.FC = () => {
           
           {/* Logo Container */}
           <div style={styles.logoContainer}>
-            <img 
-              src="/vakshesa-logo.png" 
-              alt="Vakshesa Logo" 
+            <video
+              ref={videoRef}
+              src="/vakshesa-login-intro.mp4"
+              poster="/vakshesa-login-crest.png"
+              aria-label="Vakshesa family crest animation"
+              playsInline
+              preload="metadata"
+              onEnded={() => { void completeLogin(); }}
+              onError={() => { if (playingIntro) void completeLogin(); }}
               style={styles.logoImage}
-              onError={(e) => {
-                // Fallback to placeholder if image fails to load
-                (e.target as HTMLImageElement).style.display = 'none';
-                const parent = (e.target as HTMLElement).parentElement;
-                if (parent) {
-                  parent.innerHTML = '<span style="font-size: 20px; font-weight: 600; color: #666;">LOGO</span>';
-                }
-              }}
             />
           </div>
           
-          <h2 style={styles.subtitle}>Welcome back</h2>
-          <p style={styles.description}>
-            Enter your email or phone number to sign in
-          </p>
         </div>
 
         {/* Form Section */}
@@ -86,7 +110,7 @@ const LoginScreen: React.FC = () => {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             style={styles.input}
-            disabled={loading}
+            disabled={loading || playingIntro}
           />
 
           <input
@@ -95,18 +119,18 @@ const LoginScreen: React.FC = () => {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             style={styles.input}
-            disabled={loading}
+            disabled={loading || playingIntro}
           />
 
           <button
             type="submit"
             style={{
               ...styles.primaryButton,
-              ...(loading ? styles.buttonDisabled : {}),
+              ...(loading || playingIntro ? styles.buttonDisabled : {}),
             }}
-            disabled={loading}
+            disabled={loading || playingIntro}
           >
-            {loading ? 'Loading...' : 'Continue'}
+            {loading ? 'Loading...' : playingIntro ? 'Playing...' : 'Continue'}
           </button>
         </form>
       </div>
@@ -133,50 +157,40 @@ const styles: { [key: string]: React.CSSProperties } = {
   },
   header: {
     textAlign: 'center',
-    marginBottom: '32px',
+    marginBottom: '8px',
   },
   title: {
     fontSize: '24px',
     fontWeight: '700',
     color: colors.primary,
-    marginBottom: '24px',
+    marginBottom: '16px',
   },
   logoContainer: {
-    width: '150px',
-    height: '150px',
-    backgroundColor: colors.white,
-    borderRadius: '16px',
+    width: 'clamp(250px, 78vw, 340px)',
+    height: 'clamp(250px, 78vw, 340px)',
+    backgroundColor: 'transparent',
+    borderRadius: 0,
     display: 'flex',
     justifyContent: 'center',
     alignItems: 'center',
-    margin: '0 auto 24px',
-    padding: '20px',
-    border: `2px solid ${colors.gray.border}`,
+    margin: '0 auto 8px',
+    padding: 0,
+    border: 0,
     overflow: 'hidden',
   },
   logoImage: {
     width: '100%',
     height: '100%',
     objectFit: 'contain',
+    transform: 'scale(1.3)',
   },
   logoPlaceholder: {
     fontSize: '20px',
     fontWeight: '600',
     color: colors.gray.dark,
   },
-  subtitle: {
-    fontSize: '20px',
-    fontWeight: '700',
-    color: colors.primary,
-    marginBottom: '8px',
-  },
-  description: {
-    fontSize: '14px',
-    color: colors.gray.dark,
-    lineHeight: '21px',
-  },
   form: {
-    marginTop: '24px',
+    marginTop: '8px',
   },
   errorContainer: {
     backgroundColor: '#FEE2E2',
