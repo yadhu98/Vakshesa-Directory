@@ -12,9 +12,10 @@ interface Props {
   relationshipPath?: string[];
   heading?: string;
   description?: string;
+  onSelectMember?: (member: any) => void;
 }
 
-const FamilyTreeVisualization: React.FC<Props> = ({ data, focusUserId, initialZoom = .85, compact = false, showSiblingConnections = false, relationshipPath, heading = 'Your family tree', description = 'Generations flow downward. Select a person to view their profile.' }) => {
+const FamilyTreeVisualization: React.FC<Props> = ({ data, focusUserId, initialZoom = .85, compact = false, showSiblingConnections = false, relationshipPath, heading = 'Your family tree', description = 'Generations flow downward. Select a person to view their profile.', onSelectMember }) => {
   const navigate = useNavigate();
   const [zoom, setZoom] = useState(initialZoom);
   const cardWidth = compact ? 138 : 180;
@@ -191,7 +192,7 @@ const FamilyTreeVisualization: React.FC<Props> = ({ data, focusUserId, initialZo
             const initials = `${member.firstName?.[0] || ''}${member.lastName?.[0] || ''}`.toUpperCase();
             const fullName = `${member.firstName || ''} ${member.lastName || ''}`.trim();
             const shortName = fullName.length > 10 ? `${fullName.slice(0, 10)}...` : fullName;
-            return <button key={member._id} type="button" title={fullName} onClick={() => navigate(`/profile/${member._id}`)} style={{ position: 'absolute', left: position.x - cardWidth / 2, top: position.y, width: cardWidth, height: cardHeight, display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-start', gap: compact ? 6 : 9, padding: compact ? '5px' : '7px 9px', background: current ? '#111' : '#fff', color: current ? '#fff' : '#111', border: current ? '2px solid #111' : '1px solid #d8d8d8', borderRadius: compact ? 8 : 10, boxShadow: '0 2px 8px rgba(0,0,0,.07)', cursor: 'pointer', font: 'inherit', textAlign: 'left', zIndex: 1 }}>
+            return <button key={member._id || member.id} type="button" title={fullName} onClick={() => onSelectMember ? onSelectMember(member) : navigate('/directory', { state: { openMemberId: String(member._id || member.id || '') } })} style={{ position: 'absolute', left: position.x - cardWidth / 2, top: position.y, width: cardWidth, height: cardHeight, display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-start', gap: compact ? 6 : 9, padding: compact ? '5px' : '7px 9px', background: current ? '#111' : '#fff', color: current ? '#fff' : '#111', border: current ? '2px solid #111' : '1px solid #d8d8d8', borderRadius: compact ? 8 : 10, boxShadow: '0 2px 8px rgba(0,0,0,.07)', cursor: 'pointer', font: 'inherit', textAlign: 'left', zIndex: 1 }}>
               {member.profilePicture ? <img src={member.profilePicture} alt="" style={{ width: compact ? 26 : 34, height: compact ? 26 : 34, flex: `0 0 ${compact ? 26 : 34}px`, objectFit: 'cover', borderRadius: '50%', background: '#eee' }} /> : <span aria-hidden="true" style={{ width: compact ? 26 : 34, height: compact ? 26 : 34, flex: `0 0 ${compact ? 26 : 34}px`, display: 'grid', placeItems: 'center', borderRadius: '50%', background: current ? '#fff' : '#ededed', color: '#333', fontSize: compact ? 8 : 10, fontWeight: 700 }}>{initials}</span>}
               <span style={{ flex: 1, minWidth: 0 }}><span style={{ display: 'block', marginBottom: 2, color: current ? '#ddd' : '#777', fontSize: compact ? 7 : 9, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{member.house || 'Family'}</span><strong style={{ display: 'block', fontSize: compact ? 8 : 10, lineHeight: 1.15, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{shortName}</strong><span style={{ display: 'block', marginTop: 2, color: current ? '#ddd' : '#666', fontSize: compact ? 7 : 9, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{chart.memberLabels.get(String(member._id)) || 'Family member'}</span></span>
             </button>;

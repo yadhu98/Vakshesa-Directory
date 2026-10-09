@@ -1,7 +1,7 @@
 
 
-import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect, useCallback } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { Search, ChevronRight, Phone, Mail, UserPlus, Copy, Check, X } from 'feather-icons-react';
 import AppHeader from '../components/AppHeader';
 import { userService, inviteService, isAdminUser, relationshipService, getCurrentUser } from '../services/api';
@@ -46,6 +46,7 @@ const colors = {
 
 const DirectoryScreen: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const isAdmin = isAdminUser();
   const [members, setMembers] = useState<Member[]>([]);
   const [filteredMembers, setFilteredMembers] = useState<Member[]>([]);
@@ -53,8 +54,10 @@ const DirectoryScreen: React.FC = () => {
   const [selectedHouse, setSelectedHouse] = useState<House>('All');
   const [loading, setLoading] = useState(true);
   const [modalVisible, setModalVisible] = useState(false);
+  const [profileOpenedFromTree, setProfileOpenedFromTree] = useState(false);
   const [selectedMember, setSelectedMember] = useState<Member | null>(null);
   const [familyTreeData, setFamilyTreeData] = useState<any>(null);
+  const [familyTreeFocus, setFamilyTreeFocus] = useState<{ id: string; name: string } | null>(null);
   const [familyTreeLoading, setFamilyTreeLoading] = useState(false);
   const [familyTreeError, setFamilyTreeError] = useState('');
   const [familyModalVisible, setFamilyModalVisible] = useState(false);
@@ -127,7 +130,7 @@ const DirectoryScreen: React.FC = () => {
     return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
   };
 
-  const handleMemberClick = (member: Member) => {
+  const handleMemberClick = useCallback((member: Member) => {
     setSelectedMember(member);
     setModalVisible(true);
     setMemberRelationships([]);
@@ -136,9 +139,41 @@ const DirectoryScreen: React.FC = () => {
       .then(response => setMemberRelationships(response.data.relationships || []))
       .catch(() => setMemberRelationships([]))
       .finally(() => setMemberRelationshipsLoading(false));
+  }, []);
+
+  const openTreeMember = (member: Member) => {
+    setProfileOpenedFromTree(true);
+    handleMemberClick(member);
   };
 
+  const closeMemberModal = () => {
+    setModalVisible(false);
+    setProfileOpenedFromTree(false);
+  };
+
+  useEffect(() => {
+    const state = location.state as { openMemberId?: string } | null;
+    const memberId = state?.openMemberId;
+    if (!memberId) return;
+
+    // Consume the navigation request so refresh/back won't reopen the modal.
+    navigate('/directory', { replace: true, state: null });
+    userService.getUserProfile(memberId)
+      .then(response => {
+        const member = response.data?.user || response.data;
+        if (member && (member._id || member.id)) {
+          handleMemberClick({ ...member, _id: String(member._id || member.id) });
+        }
+      })
+      .catch(() => undefined);
+  }, [location.key, location.state, navigate, handleMemberClick]);
+
   const openFamilyTree = () => {
+    setProfileOpenedFromTree(false);
+    if (selectedMember) setFamilyTreeFocus({
+      id: String(selectedMember._id || (selectedMember as any).id || ''),
+      name: `${selectedMember.firstName} ${selectedMember.lastName}`.trim(),
+    });
     setFamilyModalVisible(true);
     setFamilyTreeError('');
     setFamilyTreeLoading(true);
@@ -150,6 +185,7 @@ const DirectoryScreen: React.FC = () => {
 
   const openHowRelated = async () => {
     if (!selectedMember) return;
+    setProfileOpenedFromTree(false);
     const viewer = getCurrentUser();
     const viewerId = String(viewer?._id || viewer?.id || '');
     if (!viewerId) {
@@ -330,11 +366,11 @@ const DirectoryScreen: React.FC = () => {
 
       {/* Member Details Modal */}
       {modalVisible && selectedMember && (
-        <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+        <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: profileOpenedFromTree ? 1400 : 1000 }}>
           <div style={{ background: colors.white, borderRadius: 16, width: 'calc(100vw - 32px)', maxWidth: 560, maxHeight: '90vh', overflowY: 'auto', boxSizing: 'border-box', boxShadow: '0 2px 16px rgba(0,0,0,0.12)', padding: 24, position: 'relative' }}>
             {/* Close X button in top right */}
             <button 
-              onClick={() => setModalVisible(false)} 
+              onClick={closeMemberModal}
               style={{ 
                 position: 'absolute', 
                 top: 12, 
@@ -392,7 +428,7 @@ const DirectoryScreen: React.FC = () => {
               <div style={{ fontSize: 13, color: '#999', marginBottom: 8 }}>{selectedMember.role ? selectedMember.role.charAt(0).toUpperCase() + selectedMember.role.slice(1) : 'Member'}</div>
               {isAdmin && (
                 <button
-                  onClick={() => { setModalVisible(false); navigate(`/profile/${selectedMember._id}`); }}
+                  onClick={() => { closeMemberModal(); navigate(`/profile/${selectedMember._id}`); }}
                   style={{ marginTop: 4, padding: '8px 14px', borderRadius: 8, border: '1px solid #000', background: '#fff', color: '#000', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
                 >
                   Open full profile
@@ -474,9 +510,9 @@ const DirectoryScreen: React.FC = () => {
 
       {familyModalVisible && selectedMember && (
         <div role="presentation" onClick={() => setFamilyModalVisible(false)} style={{ position: 'fixed', inset: 0, zIndex: 1200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 12, background: 'rgba(0,0,0,.68)' }}>
-          <div role="dialog" aria-modal="true" aria-label={`${selectedMember.firstName}'s family tree`} onClick={event => event.stopPropagation()} style={{ width: '98vw', maxWidth: 1500, height: '92vh', maxHeight: '92vh', overflow: 'auto', boxSizing: 'border-box', padding: 20, borderRadius: 16, background: '#fff', boxShadow: '0 8px 36px rgba(0,0,0,.25)' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 10 }}><div><h2 style={{ margin: 0, fontSize: 22 }}>Family tree</h2><p style={{ margin: '4px 0 0', color: '#666', fontSize: 13 }}>Centered on {selectedMember.firstName} {selectedMember.lastName}</p></div><button type="button" aria-label="Close family tree" onClick={() => setFamilyModalVisible(false)} style={{ width: 38, height: 38, border: 0, borderRadius: '50%', background: '#f2f2f2', fontSize: 22, cursor: 'pointer' }}>×</button></div>
-            {familyTreeLoading ? <p style={{ color: '#777' }}>Loading family tree…</p> : familyTreeError ? <p role="alert" style={{ color: '#b42318' }}>{familyTreeError}</p> : <FamilyTreeVisualization data={familyTreeData} focusUserId={String(selectedMember._id || (selectedMember as any).id || '')} initialZoom={.75} heading="" description="" />}
+            <div role="dialog" aria-modal="true" aria-label={`${familyTreeFocus?.name || selectedMember.firstName}'s family tree`} onClick={event => event.stopPropagation()} style={{ width: '98vw', maxWidth: 1500, height: '92vh', maxHeight: '92vh', overflow: 'auto', boxSizing: 'border-box', padding: 20, borderRadius: 16, background: '#fff', boxShadow: '0 8px 36px rgba(0,0,0,.25)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 10 }}><div><h2 style={{ margin: 0, fontSize: 22 }}>Family tree</h2><p style={{ margin: '4px 0 0', color: '#666', fontSize: 13 }}>Centered on {familyTreeFocus?.name || `${selectedMember.firstName} ${selectedMember.lastName}`}</p></div><button type="button" aria-label="Close family tree" onClick={() => setFamilyModalVisible(false)} style={{ width: 38, height: 38, border: 0, borderRadius: '50%', background: '#f2f2f2', fontSize: 22, cursor: 'pointer' }}>×</button></div>
+            {familyTreeLoading ? <p style={{ color: '#777' }}>Loading family tree…</p> : familyTreeError ? <p role="alert" style={{ color: '#b42318' }}>{familyTreeError}</p> : <FamilyTreeVisualization data={familyTreeData} focusUserId={familyTreeFocus?.id || String(selectedMember._id || (selectedMember as any).id || '')} initialZoom={.75} heading="" description="" onSelectMember={openTreeMember} />}
           </div>
         </div>
       )}
@@ -485,7 +521,7 @@ const DirectoryScreen: React.FC = () => {
         <div role="presentation" onClick={() => setHowRelatedModalVisible(false)} style={{ position: 'fixed', inset: 0, zIndex: 1300, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16, background: 'rgba(0,0,0,.68)' }}>
           <div role="dialog" aria-modal="true" aria-label="How this person is related to you" onClick={event => event.stopPropagation()} style={{ width: 'min(920px, 96vw)', maxHeight: '90vh', overflow: 'auto', boxSizing: 'border-box', padding: 20, borderRadius: 16, background: '#fff', boxShadow: '0 8px 36px rgba(0,0,0,.25)' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 10 }}><div><h2 style={{ margin: 0, fontSize: 22 }}>How is this person related to me?</h2><p style={{ margin: '4px 0 0', color: '#666', fontSize: 13 }}>Trace the recorded family links to {selectedMember.firstName} {selectedMember.lastName}.</p></div><button type="button" aria-label="Close relationship visualization" onClick={() => setHowRelatedModalVisible(false)} style={{ width: 38, height: 38, flex: '0 0 38px', border: 0, borderRadius: '50%', background: '#f2f2f2', fontSize: 22, cursor: 'pointer' }}>×</button></div>
-            {howRelatedLoading ? <p style={{ color: '#777' }}>Loading relationship…</p> : howRelatedError ? <p role="status" style={{ color: '#666' }}>{howRelatedError}</p> : howRelatedData && <FamilyTreeVisualization data={howRelatedData} focusUserId={String(getCurrentUser()?._id || getCurrentUser()?.id || '')} relationshipPath={howRelatedData.relationshipPath} initialZoom={.85} showSiblingConnections heading="" description="" />}
+            {howRelatedLoading ? <p style={{ color: '#777' }}>Loading relationship…</p> : howRelatedError ? <p role="status" style={{ color: '#666' }}>{howRelatedError}</p> : howRelatedData && <FamilyTreeVisualization data={howRelatedData} focusUserId={String(getCurrentUser()?._id || getCurrentUser()?.id || '')} relationshipPath={howRelatedData.relationshipPath} initialZoom={.85} showSiblingConnections heading="" description="" onSelectMember={openTreeMember} />}
           </div>
         </div>
       )}

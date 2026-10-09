@@ -100,6 +100,11 @@ const FamilyRelationshipsPanel: React.FC<Props> = ({ profile, canEdit = false })
     finally { setHowLoading(false); }
   };
 
+  const openTreeMember = (member: any) => {
+    setHowModalVisible(false);
+    navigate('/directory', { state: { openMemberId: String(member._id || member.id || '') } });
+  };
+
   const loadRelationshipHistory = async () => {
     try { const response = await relationshipService.getHistory(); setRelationshipHistory(response.data.history || []); }
     catch (error: any) { setFamilyMessage(error?.response?.data?.message || 'Could not load relationship history'); }
@@ -138,7 +143,7 @@ const FamilyRelationshipsPanel: React.FC<Props> = ({ profile, canEdit = false })
     {howModalVisible && <div role="presentation" onClick={() => setHowModalVisible(false)} style={{ position: 'fixed', inset: 0, zIndex: 1300, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 12, background: 'rgba(0,0,0,.68)' }}>
       <div role="dialog" aria-modal="true" aria-label="Relationship path visualization" onClick={event => event.stopPropagation()} style={{ width: 'min(1100px, 98vw)', maxHeight: '92vh', overflow: 'auto', boxSizing: 'border-box', padding: 20, borderRadius: 16, background: '#fff', boxShadow: '0 8px 36px rgba(0,0,0,.25)' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 10 }}><div><h2 style={{ margin: 0, fontSize: 22 }}>How are you related?</h2><p style={{ margin: '4px 0 0', color: '#666', fontSize: 13 }}>{relatedTarget ? `Recorded relationship path to ${relatedTarget.firstName} ${relatedTarget.lastName}.` : 'Your family relationship path.'}</p></div><button type="button" aria-label="Close relationship visualization" onClick={() => setHowModalVisible(false)} style={{ width: 38, height: 38, flex: '0 0 38px', border: 0, borderRadius: '50%', background: '#f2f2f2', fontSize: 22, cursor: 'pointer' }}>×</button></div>
-        {howLoading ? <p style={{ color: '#777' }}>Finding relationship…</p> : howError ? <p role="alert" style={{ color: '#b42318' }}>{howError}</p> : howRelatedData && <FamilyTreeVisualization data={howRelatedData} focusUserId={String(getCurrentUser()?._id || getCurrentUser()?.id || '')} relationshipPath={howRelatedData.relationshipPath} initialZoom={.85} showSiblingConnections heading="" description="" />}
+        {howLoading ? <p style={{ color: '#777' }}>Finding relationship…</p> : howError ? <p role="alert" style={{ color: '#b42318' }}>{howError}</p> : howRelatedData && <FamilyTreeVisualization data={howRelatedData} focusUserId={String(getCurrentUser()?._id || getCurrentUser()?.id || '')} relationshipPath={howRelatedData.relationshipPath} initialZoom={.85} showSiblingConnections heading="" description="" onSelectMember={openTreeMember} />}
       </div>
     </div>}
   </section>;
