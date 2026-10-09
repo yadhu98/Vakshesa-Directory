@@ -7,7 +7,7 @@ import { formatRelationship, hasRelationshipPair, inferRelationship, reciprocalT
 import { recordAuditEvent } from '../services/auditService';
 import { hasApprovedMembership } from '../services/membership';
 
-const approved = (user: any, familyId: string) => !!user && String(user.familyId) === String(familyId) && user.isActive !== false && hasApprovedMembership(user) && !user.isSuperUser;
+const approved = (user: any, familyId: string) => !!user && String(user.familyId) === String(familyId) && user.isActive !== false && hasApprovedMembership(user);
 
 const familyGraph = async (familyId: string) => {
   const users = (await db.find('users', { familyId })).filter(user => approved(user, familyId));

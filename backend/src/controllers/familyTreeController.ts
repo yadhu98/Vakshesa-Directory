@@ -12,7 +12,7 @@ export const getFamilyTree = async (req: AuthRequest, res: Response) => {
     if (familyId !== req.user?.familyId) return res.status(403).json({ message: 'You can only access your own family directory' });
     const house = typeof req.query.house === 'string' ? req.query.house : undefined;
     const users = (await db.find('users', { familyId }))
-      .filter((user: any) => !user.isSuperUser && user.isActive !== false && hasApprovedMembership(user) && (!house || user.house === house))
+      .filter((user: any) => user.isActive !== false && hasApprovedMembership(user) && (!house || user.house === house))
       .map((user: any) => sanitizeUserForViewer(user, String(req.user?.id)));
     res.json({ familyId, house: house || 'all', totalMembers: users.length, totalGenerations: users.length ? Math.max(...users.map((user: any) => user.generation || 1)) : 0, tree: buildTreeStructure(users) });
   } catch (error: any) {
