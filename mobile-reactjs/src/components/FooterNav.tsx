@@ -73,8 +73,9 @@ const FooterNav: React.FC = () => {
       left: 0,
       right: 0,
       bottom: 0,
-      background: '#fff',
-      borderTop: '1px solid #E0E0E0',
+      background: '#E8E8E8',
+      borderTop: '1px solid #D6D6D6',
+      boxShadow: '0 -2px 10px rgba(0,0,0,.05)',
       display: 'flex',
       justifyContent: 'space-around',
       alignItems: 'center',
@@ -96,12 +97,14 @@ const FooterNav: React.FC = () => {
               minWidth: 0,
               height: '100%',
               border: 0,
-              background: '#fff',
+              background: 'transparent',
               textDecoration: 'none',
               color: active ? '#000' : '#999',
               display: 'flex',
               flexDirection: 'column',
               alignItems: 'center',
+              justifyContent: 'center',
+              gap: 4,
               fontWeight: active ? 600 : 400,
               fontSize: 'clamp(10px, 2.8vw, 12px)',
               whiteSpace: 'nowrap',
@@ -110,7 +113,7 @@ const FooterNav: React.FC = () => {
           >
             <span style={{ position: 'relative', lineHeight: 0 }}>
               {item.icon}
-              {isMoreItem && pendingCount > 0 && <span aria-hidden="true" style={{ position: 'absolute', top: -4, right: -7, width: 9, height: 9, border: '2px solid #fff', borderRadius: '50%', background: '#d32f2f' }} />}
+              {isMoreItem && pendingCount > 0 && <span aria-hidden="true" style={{ position: 'absolute', top: -4, right: -7, width: 9, height: 9, border: '2px solid #E8E8E8', borderRadius: '50%', background: '#d32f2f' }} />}
             </span>
             {item.label}
           </button>
