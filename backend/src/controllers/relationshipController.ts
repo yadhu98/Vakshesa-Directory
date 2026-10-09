@@ -161,7 +161,11 @@ export const createRelationship = async (req: AuthRequest, res: Response) => {
         if (String(link.fromUserId) === fromUserId) spouseIds.add(String(link.toUserId));
         if (String(link.toUserId) === fromUserId) spouseIds.add(String(link.fromUserId));
       }
-      const parents = [source, ...Array.from(spouseIds).map(id => users.find(user => String(user._id) === id)).filter(Boolean)];
+      const parents: any[] = [source];
+      for (const spouseId of spouseIds) {
+        const spouse = users.find(user => String(user._id) === spouseId);
+        if (spouse && !parents.some(parent => String(parent._id) === spouseId)) parents.push(spouse);
+      }
       for (const childId of relatedChildIds) {
         const siblingChild = users.find(user => String(user._id) === childId);
         if (!siblingChild) continue;
