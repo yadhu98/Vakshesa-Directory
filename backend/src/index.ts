@@ -91,7 +91,9 @@ app.use('/api/bulk', bulkRoutes);
 
 // Family Tree
 import familyTreeRoutes from './routes/familyTree';
+import relationshipRoutes from './routes/relationships';
 app.use('/api/family-tree', familyTreeRoutes);
+app.use('/api/relationships', relationshipRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {
@@ -196,6 +198,62 @@ const initializeLocalTestUser = async () => {
   }
 };
 
+const initializeLocalFamilyTreeTestUsers = async () => {
+  if (process.env.NODE_ENV === 'production') return;
+  try {
+    const superAdmin = await db.findOne('users', { email: 'admin@vakshesa.com' });
+    if (!superAdmin?.familyId) return;
+    const { hashPassword } = await import('./utils/auth');
+    const password = await hashPassword('123456');
+    const users = [
+      { firstName: 'Arjun', lastName: 'KC', gender: 'male', house: 'Kadannamanna' },
+      { firstName: 'Anjali', lastName: 'MC', gender: 'female', house: 'Mankada' },
+      { firstName: 'Devika', lastName: 'Varma', gender: 'female', house: 'Ayiranazhi' },
+      { firstName: 'Gautham', lastName: 'Raja', gender: 'male', house: 'Aripra' },
+      { firstName: 'Meera', lastName: 'KC', gender: 'female', house: 'Kadannamanna' },
+      { firstName: 'Rahul', lastName: 'MC', gender: 'male', house: 'Mankada' },
+      { firstName: 'Nisha', lastName: 'Varma', gender: 'female', house: 'Ayiranazhi' },
+      { firstName: 'Kiran', lastName: 'Raja', gender: 'male', house: 'Aripra' },
+      { firstName: 'Priya', lastName: 'KC', gender: 'female', house: 'Kadannamanna' },
+      { firstName: 'Anand', lastName: 'MC', gender: 'male', house: 'Mankada' },
+    ];
+    let created = 0;
+    for (const [index, person] of users.entries()) {
+      const suffix = String(index + 1).padStart(2, '0');
+      const email = `familytree.test.${suffix}@local.invalid`;
+      const phone = `90000000${String(index + 1).padStart(2, '0')}`;
+      const record = {
+        ...person,
+        email,
+        phone,
+        countryCode: '+91',
+        password,
+        role: 'user',
+        isSuperUser: false,
+        membershipStatus: 'Approved',
+        privacySettings: { ...DEFAULT_PRIVACY_SETTINGS },
+        familyId: superAdmin.familyId,
+        isActive: true,
+      };
+      const existingByEmail = await db.findOne('users', { email });
+      if (existingByEmail) {
+        await db.updateOne('users', { _id: existingByEmail._id }, record);
+        continue;
+      }
+      const phoneOwner = await db.findOne('users', { phone });
+      if (phoneOwner) {
+        console.warn(`⚠️ Skipping local family test user ${suffix}; phone ${phone} is already in use`);
+        continue;
+      }
+      await db.create('users', record);
+      created++;
+    }
+    console.log(`✅ Local family-tree test accounts ready (${created} added; all use password 123456)`);
+  } catch (error) {
+    console.error('❌ Failed to initialize local family-tree test accounts:', error);
+  }
+};
+
 const migrateLegacyAccessDefaults = async () => {
   const users = await db.find('users', {});
   for (const user of users) {
@@ -221,6 +279,7 @@ const startServer = async () => {
     // Initialize super admin
     await initializeSuperAdmin();
     await initializeLocalTestUser();
+    await initializeLocalFamilyTreeTestUsers();
     
     // Initialize WebSocket server
     wsService.initialize(server);

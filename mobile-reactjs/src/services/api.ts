@@ -116,6 +116,17 @@ export const leaderboardService = {
     axiosInstance.get('/users/leaderboard', { params: { limit } }),
 };
 
+export const relationshipService = {
+  getProfileRelationships: (userId: string) => axiosInstance.get(`/relationships/profile/${userId}`),
+  getFamilyTree: () => axiosInstance.get('/relationships/tree'),
+  add: (targetUserId: string, type: string, sourceUserId?: string) =>
+    axiosInstance.post('/relationships', { targetUserId, type, ...(sourceUserId ? { sourceUserId } : {}) }),
+  remove: (relationshipId: string) => axiosInstance.delete(`/relationships/${encodeURIComponent(relationshipId)}`),
+  howRelated: (targetUserId: string, sourceUserId?: string) =>
+    axiosInstance.get('/relationships/how-related', { params: { targetUserId, ...(sourceUserId ? { sourceUserId } : {}) } }),
+  getHistory: () => axiosInstance.get('/relationships/admin/history'),
+};
+
 export const announcementService = {
   list: () => axiosInstance.get('/announcements'),
   save: (data: FormData, id?: string) => axiosInstance.request({

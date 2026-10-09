@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Feather } from 'feather-icons-react';
 import { api, adminService, getCurrentUser, isAdminUser } from '../services/api';
+import FamilyRelationshipsPanel from '../components/FamilyRelationshipsPanel';
 import AppHeader from '../components/AppHeader';
 
 const styles = {
@@ -228,6 +229,7 @@ const EnhancedProfileScreen = () => {
           )}
         </div>
       )}
+      <FamilyRelationshipsPanel profile={profile} canEdit={isOwnProfile() || isAdminUser(getCurrentUser())} />
       <div style={styles.section}>
         <div style={styles.sectionTitle}>Personal Information</div>
         <InfoRow label="Full Name" value={`${profile.firstName} ${profile.lastName}`} />

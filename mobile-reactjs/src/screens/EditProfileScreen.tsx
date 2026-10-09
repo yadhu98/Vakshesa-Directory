@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import AppHeader from '../components/AppHeader';
 import { userService } from '../services/api';
 import { authService } from '../services/api';
 import ImageCropper from '../components/ImageCropper';
 import { Camera } from 'feather-icons-react';
+import FamilyRelationshipsPanel from '../components/FamilyRelationshipsPanel';
 
 interface EditForm {
   firstName: string;
@@ -31,12 +32,15 @@ const PRIVATE_BY_DEFAULT: Record<string, boolean> = {
 
 const EditProfileScreen: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [loading, setLoading] = useState<boolean>(true);
   const [saving, setSaving] = useState<boolean>(false);
   const [privacyDirty, setPrivacyDirty] = useState(false);
   const [privacySettings, setPrivacySettings] = useState<Record<string, 'family' | 'private'>>({});
   const [imageSrc, setImageSrc] = useState<string | null>(null);
   const [showCropper, setShowCropper] = useState(false);
+  const [activeTab, setActiveTab] = useState<'details' | 'family'>((location.state as any)?.activeTab === 'family' ? 'family' : 'details');
+  const [profileIdentity, setProfileIdentity] = useState<{ _id: string; firstName: string; lastName: string } | null>(null);
   const [form, setForm] = useState<EditForm>({
     firstName: '',
     lastName: '',
@@ -75,6 +79,7 @@ const EditProfileScreen: React.FC = () => {
         
         const res = await userService.getUserProfile(userId);
         const user = res?.data || {};
+        setProfileIdentity({ _id: String(userId), firstName: user.firstName || '', lastName: user.lastName || '' });
         setPrivacySettings(user.privacySettings || {
           email: 'private', phone: 'private', countryCode: 'private', dateOfBirth: 'private',
           gender: 'private', address: 'private', notes: 'private', linkedin: 'private',
@@ -264,6 +269,9 @@ const EditProfileScreen: React.FC = () => {
   return (
     <div style={{ background: '#F5F5F5', minHeight: '100vh', paddingBottom: 70 }}>
       <AppHeader title="My Profile" />
+      <div role="tablist" aria-label="My profile sections" style={{ display: 'flex', gap: 8, padding: '12px 16px 0', maxWidth: 400, margin: '0 auto' }}>
+        {([{ id: 'details', label: 'Details' }, { id: 'family', label: 'Family' }] as const).map(tab => <button key={tab.id} type="button" role="tab" aria-selected={activeTab === tab.id} onClick={() => setActiveTab(tab.id)} style={{ flex: 1, padding: '12px 10px', border: activeTab === tab.id ? '1px solid #111' : '1px solid #ddd', borderRadius: 10, background: activeTab === tab.id ? '#111' : '#fff', color: activeTab === tab.id ? '#fff' : '#555', fontSize: 15, fontWeight: 600, cursor: 'pointer' }}>{tab.label}</button>)}
+      </div>
       {showCropper && imageSrc && (
         <ImageCropper
           imageSrc={imageSrc}
@@ -274,6 +282,8 @@ const EditProfileScreen: React.FC = () => {
       <div style={{ padding: '16px', maxWidth: 400, margin: '0 auto' }}>
         {loading ? (
           <div style={{ textAlign: 'center', marginTop: 40 }}>Loading...</div>
+        ) : activeTab === 'family' ? (
+          profileIdentity ? <FamilyRelationshipsPanel profile={profileIdentity} canEdit /> : <div style={{ textAlign: 'center', marginTop: 40 }}>Could not load your profile.</div>
         ) : (
           <form onSubmit={e => { e.preventDefault(); handleSave(); }}>
             <div style={sectionTitleStyle}>Personal Information</div>
@@ -565,7 +575,7 @@ const EditProfileScreen: React.FC = () => {
             >
               {saving ? 'Saving...' : 'Save Changes'}
             </button>
-            
+
             <button
               style={{
                 width: '100%',

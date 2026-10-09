@@ -11,6 +11,7 @@ import EnhancedProfileScreen from './screens/EnhancedProfileScreen';
 import AdminScreen from './screens/AdminScreen';
 import AnnouncementsScreen from './screens/AnnouncementsScreen';
 import CalendarScreen from './screens/CalendarScreen';
+import FamilyTreeScreen from './screens/FamilyTreeScreen';
 import FooterNav from './components/FooterNav';
 import { isAdminUser } from './services/api';
 
@@ -64,6 +65,7 @@ const AppRoutes: React.FC = () => {
           path="/calendar"
           element={<ProtectedRoute><CalendarScreen /></ProtectedRoute>}
         />
+        <Route path="/family-tree" element={<ProtectedRoute><FamilyTreeScreen /></ProtectedRoute>} />
         <Route 
           path="/edit-profile" 
           element={

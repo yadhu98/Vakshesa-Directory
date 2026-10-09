@@ -21,6 +21,7 @@ class InMemoryStorage {
       transactions: new Map(),
       stallvisits: new Map(),
       announcements: new Map(),
+      relationships: new Map(),
     };
   }
 

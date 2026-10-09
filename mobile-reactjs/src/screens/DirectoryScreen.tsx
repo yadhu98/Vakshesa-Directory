@@ -4,7 +4,9 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Search, ChevronRight, Phone, Mail, UserPlus, Copy, Check, X } from 'feather-icons-react';
 import AppHeader from '../components/AppHeader';
-import { userService, inviteService, isAdminUser } from '../services/api';
+import { userService, inviteService, isAdminUser, relationshipService, getCurrentUser } from '../services/api';
+import FamilyTreeVisualization from '../components/FamilyTreeVisualization';
+import { findRelationshipPath } from '../components/familyTreeKinship';
 import './DirectoryScreen.css';
 
 // Shared API base URL logic lives in services/api.ts — do not hardcode a
@@ -52,6 +54,16 @@ const DirectoryScreen: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedMember, setSelectedMember] = useState<Member | null>(null);
+  const [familyTreeData, setFamilyTreeData] = useState<any>(null);
+  const [familyTreeLoading, setFamilyTreeLoading] = useState(false);
+  const [familyTreeError, setFamilyTreeError] = useState('');
+  const [familyModalVisible, setFamilyModalVisible] = useState(false);
+  const [memberRelationships, setMemberRelationships] = useState<any[]>([]);
+  const [memberRelationshipsLoading, setMemberRelationshipsLoading] = useState(false);
+  const [howRelatedModalVisible, setHowRelatedModalVisible] = useState(false);
+  const [howRelatedData, setHowRelatedData] = useState<any>(null);
+  const [howRelatedLoading, setHowRelatedLoading] = useState(false);
+  const [howRelatedError, setHowRelatedError] = useState('');
   const [inviteModalVisible, setInviteModalVisible] = useState(false);
   const [inviteLink, setInviteLink] = useState('');
   const [inviteCopied, setInviteCopied] = useState(false);
@@ -118,6 +130,58 @@ const DirectoryScreen: React.FC = () => {
   const handleMemberClick = (member: Member) => {
     setSelectedMember(member);
     setModalVisible(true);
+    setMemberRelationships([]);
+    setMemberRelationshipsLoading(true);
+    relationshipService.getProfileRelationships(member._id)
+      .then(response => setMemberRelationships(response.data.relationships || []))
+      .catch(() => setMemberRelationships([]))
+      .finally(() => setMemberRelationshipsLoading(false));
+  };
+
+  const openFamilyTree = () => {
+    setFamilyModalVisible(true);
+    setFamilyTreeError('');
+    setFamilyTreeLoading(true);
+    relationshipService.getFamilyTree()
+      .then(response => setFamilyTreeData(response.data))
+      .catch(error => setFamilyTreeError(error?.response?.data?.message || 'Could not load family relationships.'))
+      .finally(() => setFamilyTreeLoading(false));
+  };
+
+  const openHowRelated = async () => {
+    if (!selectedMember) return;
+    const viewer = getCurrentUser();
+    const viewerId = String(viewer?._id || viewer?.id || '');
+    if (!viewerId) {
+      setHowRelatedError('Could not identify the signed-in member. Please sign in again.');
+      setHowRelatedData(null);
+      setHowRelatedModalVisible(true);
+      return;
+    }
+    setHowRelatedModalVisible(true);
+    setHowRelatedLoading(true);
+    setHowRelatedError('');
+    setHowRelatedData(null);
+    try {
+      const response = await relationshipService.getFamilyTree();
+      const tree = response.data;
+      const links = tree.relationships || [];
+      const targetId = String(selectedMember._id);
+      const path = findRelationshipPath(viewerId, targetId, tree.members || [], links);
+      if (!path) {
+        setHowRelatedError(`No relationship path is recorded between you and ${selectedMember.firstName} ${selectedMember.lastName}.`);
+        return;
+      }
+      setHowRelatedData({
+        members: (tree.members || []).filter((member: any) => path.userIds.includes(String(member._id))),
+        relationships: path.relationships,
+        relationshipPath: path.userIds,
+      });
+    } catch (error: any) {
+      setHowRelatedError(error?.response?.data?.message || 'Could not load your direct relationship.');
+    } finally {
+      setHowRelatedLoading(false);
+    }
   };
 
   const openInviteModal = () => {
@@ -267,7 +331,7 @@ const DirectoryScreen: React.FC = () => {
       {/* Member Details Modal */}
       {modalVisible && selectedMember && (
         <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-          <div style={{ background: colors.white, borderRadius: 16, minWidth: 300, maxWidth: 340, boxShadow: '0 2px 16px rgba(0,0,0,0.12)', padding: 24, position: 'relative' }}>
+          <div style={{ background: colors.white, borderRadius: 16, width: 'calc(100vw - 32px)', maxWidth: 560, maxHeight: '90vh', overflowY: 'auto', boxSizing: 'border-box', boxShadow: '0 2px 16px rgba(0,0,0,0.12)', padding: 24, position: 'relative' }}>
             {/* Close X button in top right */}
             <button 
               onClick={() => setModalVisible(false)} 
@@ -342,6 +406,12 @@ const DirectoryScreen: React.FC = () => {
               {selectedMember.occupation && <div style={{ fontSize: 14, color: '#333' }}>💼 {selectedMember.occupation}</div>}
               {selectedMember.address && <div style={{ fontSize: 14, color: '#333', lineHeight: '1.5' }}>📍 {selectedMember.address}</div>}
             </div>
+            <section aria-label="Family relationships" style={{ margin: '16px 0', padding: 12, border: '1px solid #e5e5e5', borderRadius: 12, background: '#fff' }}>
+              <h3 style={{ margin: '0 0 8px', fontSize: 18, color: '#111' }}>Family</h3>
+              {memberRelationshipsLoading ? <p style={{ margin: 0, color: '#777', fontSize: 13 }}>Loading relationships…</p> : memberRelationships.filter((relationship: any) => !relationship.derived).length ? <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 12 }}>{memberRelationships.filter((relationship: any) => !relationship.derived).map((relationship: any) => <span key={`${relationship.user._id}-${relationship.type}`} style={{ padding: '5px 9px', border: '1px solid #e3e3e3', borderRadius: 999, background: '#f7f7f7', color: '#444', fontSize: 12 }}><strong>{relationship.label}</strong> · {relationship.user.firstName} {relationship.user.lastName}</span>)}</div> : <p style={{ margin: '0 0 12px', color: '#777', fontSize: 13 }}>No direct family relationships added yet.</p>}
+              <button type="button" onClick={openHowRelated} style={{ width: '100%', marginBottom: 8, padding: '10px 12px', border: '1px solid #ddd', borderRadius: 9, background: '#fff', color: '#111', fontWeight: 600, cursor: 'pointer' }}>How is this person related to me?</button>
+              <button type="button" onClick={openFamilyTree} style={{ width: '100%', padding: '10px 12px', border: 0, borderRadius: 9, background: '#111', color: '#fff', fontWeight: 600, cursor: 'pointer' }}>Open family tree</button>
+            </section>
             {(selectedMember.linkedin || selectedMember.instagram || selectedMember.facebook) && (
               <div style={{ marginBottom: 16, paddingTop: 12, borderTop: '1px solid #E0E0E0' }}>
                 <div style={{ fontSize: 13, fontWeight: 600, color: '#666', marginBottom: 8 }}>Social Media</div>
@@ -398,6 +468,24 @@ const DirectoryScreen: React.FC = () => {
               <a href={`tel:${selectedMember.phone}`} style={{ flex: 1, padding: '10px 0', borderRadius: 8, border: 'none', background: colors.primary, color: colors.white, fontWeight: 600, fontSize: 15, cursor: 'pointer', textAlign: 'center', textDecoration: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}><Phone size={18} />Call</a>
               <a href={`mailto:${selectedMember.email}`} style={{ flex: 1, padding: '10px 0', borderRadius: 8, border: 'none', background: colors.primary, color: colors.white, fontWeight: 600, fontSize: 15, cursor: 'pointer', textAlign: 'center', textDecoration: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}><Mail size={18} />Email</a>
             </div>
+          </div>
+        </div>
+      )}
+
+      {familyModalVisible && selectedMember && (
+        <div role="presentation" onClick={() => setFamilyModalVisible(false)} style={{ position: 'fixed', inset: 0, zIndex: 1200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 12, background: 'rgba(0,0,0,.68)' }}>
+          <div role="dialog" aria-modal="true" aria-label={`${selectedMember.firstName}'s family tree`} onClick={event => event.stopPropagation()} style={{ width: '98vw', maxWidth: 1500, height: '92vh', maxHeight: '92vh', overflow: 'auto', boxSizing: 'border-box', padding: 20, borderRadius: 16, background: '#fff', boxShadow: '0 8px 36px rgba(0,0,0,.25)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 10 }}><div><h2 style={{ margin: 0, fontSize: 22 }}>Family tree</h2><p style={{ margin: '4px 0 0', color: '#666', fontSize: 13 }}>Centered on {selectedMember.firstName} {selectedMember.lastName}</p></div><button type="button" aria-label="Close family tree" onClick={() => setFamilyModalVisible(false)} style={{ width: 38, height: 38, border: 0, borderRadius: '50%', background: '#f2f2f2', fontSize: 22, cursor: 'pointer' }}>×</button></div>
+            {familyTreeLoading ? <p style={{ color: '#777' }}>Loading family tree…</p> : familyTreeError ? <p role="alert" style={{ color: '#b42318' }}>{familyTreeError}</p> : <FamilyTreeVisualization data={familyTreeData} focusUserId={String(selectedMember._id || (selectedMember as any).id || '')} initialZoom={.75} heading="" description="" />}
+          </div>
+        </div>
+      )}
+
+      {howRelatedModalVisible && selectedMember && (
+        <div role="presentation" onClick={() => setHowRelatedModalVisible(false)} style={{ position: 'fixed', inset: 0, zIndex: 1300, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16, background: 'rgba(0,0,0,.68)' }}>
+          <div role="dialog" aria-modal="true" aria-label="How this person is related to you" onClick={event => event.stopPropagation()} style={{ width: 'min(920px, 96vw)', maxHeight: '90vh', overflow: 'auto', boxSizing: 'border-box', padding: 20, borderRadius: 16, background: '#fff', boxShadow: '0 8px 36px rgba(0,0,0,.25)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 10 }}><div><h2 style={{ margin: 0, fontSize: 22 }}>How is this person related to me?</h2><p style={{ margin: '4px 0 0', color: '#666', fontSize: 13 }}>Trace the recorded family links to {selectedMember.firstName} {selectedMember.lastName}.</p></div><button type="button" aria-label="Close relationship visualization" onClick={() => setHowRelatedModalVisible(false)} style={{ width: 38, height: 38, flex: '0 0 38px', border: 0, borderRadius: '50%', background: '#f2f2f2', fontSize: 22, cursor: 'pointer' }}>×</button></div>
+            {howRelatedLoading ? <p style={{ color: '#777' }}>Loading relationship…</p> : howRelatedError ? <p role="status" style={{ color: '#666' }}>{howRelatedError}</p> : howRelatedData && <FamilyTreeVisualization data={howRelatedData} focusUserId={String(getCurrentUser()?._id || getCurrentUser()?.id || '')} relationshipPath={howRelatedData.relationshipPath} initialZoom={.85} showSiblingConnections heading="" description="" />}
           </div>
         </div>
       )}
