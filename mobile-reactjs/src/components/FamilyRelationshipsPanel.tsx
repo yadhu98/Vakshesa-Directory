@@ -27,7 +27,7 @@ const FamilyRelationshipsPanel: React.FC<Props> = ({ profile, canEdit = false })
   const [howError, setHowError] = useState('');
   const [relationshipHistory, setRelationshipHistory] = useState<any[]>([]);
   const directRelationships = relationships.filter((relationship: any) => !relationship.derived);
-  const hasRelation = (type: string) => directRelationships.some((relationship: any) =>
+  const hasUniqueRelation = (type: string) => ['father', 'mother', 'spouse'].includes(type) && directRelationships.some((relationship: any) =>
     String(relationship.type || '').toLowerCase() === type || String(relationship.label || '').toLowerCase() === type,
   );
   const childGenderMismatch = (familyType === 'son' && familyTarget?.gender === 'female') || (familyType === 'daughter' && familyTarget?.gender === 'male');
@@ -58,9 +58,10 @@ const FamilyRelationshipsPanel: React.FC<Props> = ({ profile, canEdit = false })
     if (!familyTarget) { setFamilyMessage('Choose a family member first.'); return; }
     setSavingFamily(true); setFamilyMessage('');
     try {
-      await relationshipService.add(familyTarget._id, familyType, canEdit && isAdminUser(getCurrentUser()) ? profile._id : undefined);
+      const response = await relationshipService.add(familyTarget._id, familyType, canEdit && isAdminUser(getCurrentUser()) ? profile._id : undefined);
       await reloadRelationships();
-      setFamilyMessage('Relationship added to both profiles.');
+      const additionalLinks = Math.max(0, Number(response.data.linkedRelationshipCount || 1) - 1);
+      setFamilyMessage(additionalLinks ? `Relationship added. ${additionalLinks} related family relationship${additionalLinks === 1 ? '' : 's'} also added.` : 'Relationship added to both profiles.');
       setFamilyTarget(null); setFamilyQuery(''); setFamilyMatches([]);
     } catch (error: any) { setFamilyMessage(error?.response?.data?.message || 'Could not add relationship'); }
     finally { setSavingFamily(false); }
@@ -129,9 +130,9 @@ const FamilyRelationshipsPanel: React.FC<Props> = ({ profile, canEdit = false })
         <p style={{ color: '#666', fontSize: 13 }}>Relationship for {profile.firstName} {profile.lastName}</p>
         <label style={{ display: 'block', fontSize: 13, fontWeight: 600 }}>Search member<input value={familyTarget ? `${familyTarget.firstName} ${familyTarget.lastName}` : familyQuery} onChange={event => searchFamily(event.target.value)} placeholder="Type a name" style={{ display: 'block', boxSizing: 'border-box', width: '100%', padding: 10, marginTop: 5, border: '1px solid #ccc', borderRadius: 8 }} /></label>
         {!familyTarget && familyMatches.length > 0 && <div style={{ maxHeight: 130, overflow: 'auto', border: '1px solid #ddd', borderRadius: 8, marginTop: 4 }}>{familyMatches.map(member => <button key={member._id} type="button" onClick={() => { setFamilyTarget(member); setFamilyQuery(''); setFamilyMatches([]); if (member.gender === 'female' && familyType === 'son') setFamilyType('daughter'); if (member.gender === 'male' && familyType === 'daughter') setFamilyType('son'); }} style={{ display: 'block', width: '100%', padding: 9, border: 0, borderBottom: '1px solid #eee', background: '#fff', textAlign: 'left', cursor: 'pointer' }}>{member.firstName} {member.lastName} · {member.house || 'Family'}</button>)}</div>}
-        <label style={{ display: 'block', marginTop: 13, fontSize: 13, fontWeight: 600 }}>Their relationship to {profile.firstName}<select value={familyType} onChange={event => setFamilyType(event.target.value)} style={{ display: 'block', width: '100%', padding: 10, marginTop: 5, border: '1px solid #ccc', borderRadius: 8, background: '#fff' }}><option value="father" disabled={hasRelation('father')}>Father{hasRelation('father') ? ' (already set)' : ''}</option><option value="mother" disabled={hasRelation('mother')}>Mother{hasRelation('mother') ? ' (already set)' : ''}</option><option value="son" disabled={familyTarget?.gender === 'female'}>Son</option><option value="daughter" disabled={familyTarget?.gender === 'male'}>Daughter</option><option value="brother">Brother</option><option value="sister">Sister</option><option value="spouse" disabled={hasRelation('spouse')}>Spouse{hasRelation('spouse') ? ' (already set)' : ''}</option></select></label>
+        <label style={{ display: 'block', marginTop: 13, fontSize: 13, fontWeight: 600 }}>Their relationship to {profile.firstName}<select value={familyType} onChange={event => setFamilyType(event.target.value)} style={{ display: 'block', width: '100%', padding: 10, marginTop: 5, border: '1px solid #ccc', borderRadius: 8, background: '#fff' }}><option value="father" disabled={hasUniqueRelation('father')}>Father{hasUniqueRelation('father') ? ' (already set)' : ''}</option><option value="mother" disabled={hasUniqueRelation('mother')}>Mother{hasUniqueRelation('mother') ? ' (already set)' : ''}</option><option value="son" disabled={familyTarget?.gender === 'female'}>Son</option><option value="daughter" disabled={familyTarget?.gender === 'male'}>Daughter</option><option value="brother">Brother</option><option value="sister">Sister</option><option value="spouse" disabled={hasUniqueRelation('spouse')}>Spouse{hasUniqueRelation('spouse') ? ' (already set)' : ''}</option></select></label>
         {familyMessage && <p aria-live="polite" style={{ color: familyMessage.startsWith('Relationship added') ? '#1b7c4b' : '#b42318', fontSize: 13 }}>{familyMessage}</p>}
-        <button type="submit" disabled={savingFamily || !familyTarget || hasRelation(familyType) || childGenderMismatch} style={{ width: '100%', marginTop: 16, padding: 12, border: 0, borderRadius: 8, background: '#111', color: '#fff', fontWeight: 600, cursor: 'pointer', opacity: savingFamily || !familyTarget || hasRelation(familyType) || childGenderMismatch ? .55 : 1 }}>{savingFamily ? 'Adding…' : 'Add relationship'}</button>
+        <button type="submit" disabled={savingFamily || !familyTarget || hasUniqueRelation(familyType) || childGenderMismatch} style={{ width: '100%', marginTop: 16, padding: 12, border: 0, borderRadius: 8, background: '#111', color: '#fff', fontWeight: 600, cursor: 'pointer', opacity: savingFamily || !familyTarget || hasUniqueRelation(familyType) || childGenderMismatch ? .55 : 1 }}>{savingFamily ? 'Adding…' : 'Add relationship'}</button>
       </form>
     </div>}
     {howModalVisible && <div role="presentation" onClick={() => setHowModalVisible(false)} style={{ position: 'fixed', inset: 0, zIndex: 1300, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 12, background: 'rgba(0,0,0,.68)' }}>

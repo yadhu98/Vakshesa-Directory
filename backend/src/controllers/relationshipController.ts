@@ -44,6 +44,30 @@ const familyGraph = async (familyId: string) => {
   return { users, links };
 };
 
+const siblingIdsFor = (userId: string, links: RelationshipLink[]) => Array.from(new Set(
+  links.filter(link => ['brother', 'sister', 'sibling'].includes(String(link.type).toLowerCase()) &&
+    (String(link.fromUserId) === userId || String(link.toUserId) === userId))
+    .map(link => String(link.fromUserId) === userId ? link.toUserId : link.fromUserId)
+    .map(String)
+    .filter(id => id !== userId),
+));
+
+const existingParentForRole = (childId: string, role: 'father' | 'mother', users: any[], links: RelationshipLink[]) => {
+  const child = users.find(user => String(user._id) === childId);
+  const parentField = role === 'father' ? child?.fatherId : child?.motherId;
+  if (parentField) return String(parentField);
+  const expectedGender = role === 'father' ? 'male' : 'female';
+  const parentLink = links.find(link => String(link.fromUserId) === childId &&
+    (String(link.type).toLowerCase() === role || (String(link.type).toLowerCase() === 'parent' &&
+      users.find(user => String(user._id) === String(link.toUserId))?.gender === expectedGender)));
+  return parentLink ? String(parentLink.toUserId) : null;
+};
+
+const wouldCreateParentCycle = (parentId: string, childId: string, users: any[], links: RelationshipLink[]) => {
+  const reverseType = inferRelationship(parentId, childId, users, links)?.type;
+  return ['father', 'mother', 'parent', 'grandparent', 'grandchild', 'son', 'daughter', 'child'].includes(String(reverseType));
+};
+
 export const getRelationshipProfile = async (req: AuthRequest, res: Response) => {
   try {
     const userId = String(req.params.userId);
@@ -89,17 +113,10 @@ export const createRelationship = async (req: AuthRequest, res: Response) => {
     const exists = hasRelationshipPair(links, fromUserId, toUserId);
     if (exists) return res.status(409).json({ message: 'A relationship between these members already exists' });
     if (type === 'father' || type === 'mother') {
-      const profileParentId = type === 'father' ? source.fatherId : source.motherId;
-      const alreadyHasParent = !!profileParentId || links.some(link =>
-        String(link.fromUserId) === fromUserId &&
-        (String(link.type).toLowerCase() === type || (String(link.type).toLowerCase() === 'parent' &&
-          users.find(user => String(user._id) === String(link.toUserId))?.gender === (type === 'father' ? 'male' : 'female'))),
-      );
-      if (alreadyHasParent) return res.status(409).json({ message: `A ${type} relationship is already set for this person` });
+      if (existingParentForRole(fromUserId, type, users, links)) return res.status(409).json({ message: `A ${type} relationship is already set for this person` });
     }
     if (type === 'son' || type === 'daughter') {
-      const reverseType = inferRelationship(toUserId, fromUserId, users, links)?.type;
-      if (['father', 'mother', 'parent', 'grandparent', 'grandchild', 'son', 'daughter', 'child'].includes(String(reverseType))) {
+      if (wouldCreateParentCycle(fromUserId, toUserId, users, links)) {
         return res.status(409).json({ message: 'This parent relationship would create a family tree cycle' });
       }
     }
@@ -108,21 +125,75 @@ export const createRelationship = async (req: AuthRequest, res: Response) => {
       (String(link.fromUserId) === fromUserId || String(link.toUserId) === fromUserId || String(link.fromUserId) === toUserId || String(link.toUserId) === toUserId),
     ))) return res.status(409).json({ message: 'One of these people already has a spouse relationship' });
     if (type === 'father' || type === 'mother') {
-      const reverseType = inferRelationship(toUserId, fromUserId, users, links)?.type;
-      const wouldCycle = ['parent', 'father', 'mother', 'son', 'daughter', 'child'].includes(String(reverseType));
-      if (wouldCycle) return res.status(409).json({ message: 'This parent relationship would create a family tree cycle' });
+      if (wouldCreateParentCycle(toUserId, fromUserId, users, links)) return res.status(409).json({ message: 'This parent relationship would create a family tree cycle' });
     }
-    const inverse = reciprocalType(type, source.gender);
+
+    const plannedPairs: Array<{ fromUserId: string; toUserId: string; type: RelationshipType; inverse: RelationshipType }> = [
+      { fromUserId, toUserId, type, inverse: reciprocalType(type, source.gender) },
+    ];
+    const plannedUnorderedPairs = new Set([ [fromUserId, toUserId].sort().join(':') ]);
+    const addAutoPair = (autoFromId: string, autoToId: string, autoType: RelationshipType, inverseType: RelationshipType) => {
+      const pairKey = [autoFromId, autoToId].sort().join(':');
+      if (plannedUnorderedPairs.has(pairKey) || hasRelationshipPair(links, autoFromId, autoToId)) return;
+      plannedUnorderedPairs.add(pairKey);
+      plannedPairs.push({ fromUserId: autoFromId, toUserId: autoToId, type: autoType, inverse: inverseType });
+    };
+
+    if (type === 'father' || type === 'mother') {
+      // A sibling group shares newly recorded parents unless that sibling already
+      // has a different parent in the same role (for example, a half-sibling).
+      for (const siblingId of siblingIdsFor(fromUserId, links)) {
+        const sibling = users.find(user => String(user._id) === siblingId);
+        if (!sibling || existingParentForRole(siblingId, type, users, links)) continue;
+        if (wouldCreateParentCycle(toUserId, siblingId, users, links)) continue;
+        addAutoPair(siblingId, toUserId, type, reciprocalType(type, sibling.gender));
+      }
+    }
+
+    if (type === 'son' || type === 'daughter') {
+      // A spouse is recorded as the other parent when available, and the child's
+      // existing siblings inherit the same available parent links.
+      const relatedChildIds = new Set([toUserId, ...siblingIdsFor(toUserId, links)]);
+      const spouseIds = new Set<string>();
+      if (source.spouseId) spouseIds.add(String(source.spouseId));
+      for (const link of links) {
+        if (String(link.type).toLowerCase() !== 'spouse') continue;
+        if (String(link.fromUserId) === fromUserId) spouseIds.add(String(link.toUserId));
+        if (String(link.toUserId) === fromUserId) spouseIds.add(String(link.fromUserId));
+      }
+      const parents = [source, ...Array.from(spouseIds).map(id => users.find(user => String(user._id) === id)).filter(Boolean)];
+      for (const childId of relatedChildIds) {
+        const siblingChild = users.find(user => String(user._id) === childId);
+        if (!siblingChild) continue;
+        const childRole = siblingChild.gender === 'female' ? 'daughter' : 'son';
+        for (const parent of parents) {
+          const parentId = String(parent._id);
+          if (wouldCreateParentCycle(parentId, childId, users, links)) continue;
+          const parentRole = parent.gender === 'female' ? 'mother' : 'father';
+          const existingParentId = existingParentForRole(childId, parentRole, users, links);
+          if (existingParentId && existingParentId !== parentId) continue;
+          addAutoPair(parentId, childId, childRole, reciprocalType(childRole, parent.gender));
+        }
+      }
+    }
+
     const createdBy = String(req.user?.id || '');
-    const forward = await db.create('relationships', { familyId, fromUserId, toUserId, type, createdBy });
+    const createdRelationshipIds: string[] = [];
     try {
-      await db.create('relationships', { familyId, fromUserId: toUserId, toUserId: fromUserId, type: inverse, createdBy });
+      let forward: any = null;
+      for (const pair of plannedPairs) {
+        const createdForward = await db.create('relationships', { familyId, fromUserId: pair.fromUserId, toUserId: pair.toUserId, type: pair.type, createdBy });
+        createdRelationshipIds.push(String(createdForward._id));
+        if (pair.fromUserId === fromUserId && pair.toUserId === toUserId) forward = createdForward;
+        const createdInverse = await db.create('relationships', { familyId, fromUserId: pair.toUserId, toUserId: pair.fromUserId, type: pair.inverse, createdBy });
+        createdRelationshipIds.push(String(createdInverse._id));
+      }
+      await recordAuditEvent(createdBy, String(req.user?.role), admin && fromUserId !== createdBy ? 'family_relationship_admin_added' : 'family_relationship_added', toUserId, { familyId, sourceUserId: fromUserId, targetUserId: toUserId, type });
+      res.status(201).json({ message: 'Family relationship added', relationship: forward, linkedRelationshipCount: plannedPairs.length });
     } catch (error) {
-      await db.deleteOne('relationships', { _id: forward._id });
+      for (const relationshipId of createdRelationshipIds) await db.deleteOne('relationships', { _id: relationshipId });
       throw error;
     }
-    await recordAuditEvent(createdBy, String(req.user?.role), admin && fromUserId !== createdBy ? 'family_relationship_admin_added' : 'family_relationship_added', toUserId, { familyId, sourceUserId: fromUserId, targetUserId: toUserId, type });
-    res.status(201).json({ message: 'Family relationship added', relationship: forward });
   } catch (error: any) {
     res.status(error?.code === 11000 ? 409 : 500).json({ message: error?.code === 11000 ? 'This relationship already exists' : 'Could not add family relationship', error: error.message });
   }
