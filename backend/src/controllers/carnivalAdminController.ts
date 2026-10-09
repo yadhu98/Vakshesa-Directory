@@ -5,6 +5,7 @@ import { ICarnivalStall, EventCategory } from '../models/CarnivalStall';
 import { IUser } from '../models/User';
 import crypto from 'crypto';
 import { sanitizeUserForViewer } from '../services/profilePrivacy';
+import { hasApprovedMembership } from '../services/membership';
 
 // Generate unique QR code for event
 const generateQRCode = (): string => {
@@ -26,7 +27,7 @@ export const getUsers = async (req: Request, res: Response) => {
   try {
     const authReq = req as AuthRequest;
     const users = await db.find('users', { familyId: authReq.user?.familyId });
-    const approvedUsers = users.filter((user: any) => user.isActive !== false && user.membershipStatus === 'Approved');
+    const approvedUsers = users.filter((user: any) => user.isActive !== false && hasApprovedMembership(user));
     
     const userList = approvedUsers.map((user: any) => {
       const safeUser = sanitizeUserForViewer(user, String(authReq.user?.id));

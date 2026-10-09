@@ -4,13 +4,14 @@ import { getFamilyTree, buildFamilyTreeStructure, searchUsers, getLeaderboard } 
 import { db } from '../config/storage';
 import { sanitizeUserForViewer } from '../services/profilePrivacy';
 import { wsService } from '../services/websocket';
+import { hasApprovedMembership } from '../services/membership';
 
 export const getUserProfile = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const { userId } = req.params;
     const user = await db.findById('users', userId);
 
-    if (!user || user.familyId !== req.user?.familyId || user.isActive === false || user.membershipStatus !== 'Approved') {
+    if (!user || user.familyId !== req.user?.familyId || user.isActive === false || !hasApprovedMembership(user)) {
       res.status(404).json({ message: 'User not found' });
       return;
     }
@@ -31,7 +32,7 @@ export const getFamilyTreeStructure = async (req: AuthRequest, res: Response): P
     const candidateNodes = await getFamilyTree(familyId);
     const nodes = (await Promise.all(candidateNodes.map(async (node: any) => {
       const member = await db.findById('users', String(node.userId));
-      return member && member.familyId === familyId && member.isActive !== false && member.membershipStatus === 'Approved' ? node : null;
+      return member && member.familyId === familyId && member.isActive !== false && hasApprovedMembership(member) ? node : null;
     }))).filter(Boolean);
     const tree = buildFamilyTreeStructure(nodes);
 
@@ -85,13 +86,13 @@ export const toggleUserStatus = async (req: AuthRequest, res: Response): Promise
     const { db } = await import('../config/storage');
     const user = await db.findById('users', userId);
 
-    if (!user || user.familyId !== req.user?.familyId || user.membershipStatus !== 'Approved') {
+    if (!user || user.familyId !== req.user?.familyId || !hasApprovedMembership(user)) {
       res.status(404).json({ message: 'User not found' });
       return;
     }
     if (!isActive && user.role === 'admin') {
       const admins = await db.find('users', { familyId: user.familyId, role: 'admin' });
-      const activeAdmins = admins.filter((member: any) => member.isActive !== false && member.membershipStatus === 'Approved');
+      const activeAdmins = admins.filter((member: any) => member.isActive !== false && hasApprovedMembership(member));
       if (activeAdmins.length <= 1) {
         res.status(409).json({ message: 'You cannot deactivate the last remaining family admin' });
         return;
@@ -119,7 +120,7 @@ export const updateUser = async (req: AuthRequest, res: Response): Promise<void>
     const { db } = await import('../config/storage');
     const user = await db.findById('users', userId);
 
-    if (!user || user.familyId !== req.user?.familyId || user.membershipStatus !== 'Approved') {
+    if (!user || user.familyId !== req.user?.familyId || !hasApprovedMembership(user)) {
       res.status(404).json({ message: 'User not found' });
       return;
     }
@@ -172,7 +173,7 @@ export const updateOwnProfile = async (req: AuthRequest, res: Response): Promise
       return;
     }
     const user = await db.findById('users', userId);
-    if (!user || user.familyId !== req.user?.familyId || user.isActive === false || user.membershipStatus !== 'Approved') {
+    if (!user || user.familyId !== req.user?.familyId || user.isActive === false || !hasApprovedMembership(user)) {
       res.status(404).json({ message: 'User not found' });
       return;
     }

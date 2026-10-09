@@ -5,6 +5,7 @@ import { recordAuditEvent } from '../services/auditService';
 import { sanitizeUserForViewer } from '../services/profilePrivacy';
 import { wsService } from '../services/websocket';
 import { hashPassword } from '../utils/auth';
+import { hasApprovedMembership } from '../services/membership';
 
 const applicantView = (user: any) => {
   if (!user) return null;
@@ -115,7 +116,7 @@ export const reviewRegistrationRequest = async (req: AuthRequest, res: Response)
 export const listFamilyAdmins = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const users = await db.find('users', { familyId: req.user?.familyId, role: 'admin' });
-    const approved = users.filter((user: any) => user.isActive !== false && user.membershipStatus === 'Approved');
+    const approved = users.filter((user: any) => user.isActive !== false && hasApprovedMembership(user));
     res.json({ admins: approved.map((user: any) => sanitizeUserForViewer(user, String(req.user?.id))) });
   } catch (error: any) {
     res.status(500).json({ message: error.message });
@@ -134,7 +135,7 @@ export const changeFamilyAdminRole = async (req: AuthRequest, res: Response): Pr
       res.status(404).json({ message: 'Family member not found' });
       return;
     }
-    if (target.membershipStatus !== 'Approved' || target.isActive === false) {
+    if (!hasApprovedMembership(target) || target.isActive === false) {
       res.status(409).json({ message: 'Only active, approved members can be made an admin' });
       return;
     }
@@ -148,7 +149,7 @@ export const changeFamilyAdminRole = async (req: AuthRequest, res: Response): Pr
     }
     if (role === 'user' && String(target._id) === String(req.user?.id)) {
       const admins = await db.find('users', { familyId: req.user?.familyId, role: 'admin' });
-      const activeAdminCount = admins.filter((item: any) => item.isActive !== false && item.membershipStatus === 'Approved').length;
+      const activeAdminCount = admins.filter((item: any) => item.isActive !== false && hasApprovedMembership(item)).length;
       if (activeAdminCount <= 1) {
         res.status(409).json({ message: 'You cannot remove the last remaining family admin' });
         return;

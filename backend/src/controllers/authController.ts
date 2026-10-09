@@ -5,6 +5,7 @@ import { generateToken } from '../utils/auth';
 import { AuthRequest } from '../middleware/auth';
 import { DEFAULT_PRIVACY_SETTINGS } from '../models/User';
 import { recordAuditEvent } from '../services/auditService';
+import { hasApprovedMembership } from '../services/membership';
 
 export const login = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -27,7 +28,7 @@ export const login = async (req: Request, res: Response): Promise<void> => {
       });
       return;
     }
-    if (user.membershipStatus !== 'Approved') {
+    if (!hasApprovedMembership(user)) {
       res.status(403).json({ message: 'Account approval is required before signing in' });
       return;
     }
@@ -89,7 +90,7 @@ export const register = async (req: Request, res: Response): Promise<void> => {
       return;
     }
     const inviter = await db.findById('users', String(invitation.createdBy));
-    if (!inviter || inviter.isActive === false || inviter.membershipStatus !== 'Approved') {
+    if (!inviter || inviter.isActive === false || !hasApprovedMembership(inviter)) {
       res.status(400).json({ message: 'The person who issued this invitation is no longer eligible to invite members' });
       return;
     }

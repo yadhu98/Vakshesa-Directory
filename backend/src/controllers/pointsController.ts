@@ -3,6 +3,7 @@ import { AuthRequest } from '../middleware/auth';
 import { db } from '../config/storage';
 import { wsService } from '../services/websocket';
 import { getLeaderboard } from '../services/dataService';
+import { hasApprovedMembership } from '../services/membership';
 
 export const addPoints = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
@@ -14,7 +15,7 @@ export const addPoints = async (req: AuthRequest, res: Response): Promise<void> 
       return;
     }
     const member = await db.findById('users', String(userId));
-    if (!member || member.familyId !== req.user?.familyId || member.isActive === false || member.membershipStatus !== 'Approved') {
+    if (!member || member.familyId !== req.user?.familyId || member.isActive === false || !hasApprovedMembership(member)) {
       res.status(404).json({ message: 'Approved member of your family not found' });
       return;
     }
@@ -67,7 +68,7 @@ export const recordSale = async (req: AuthRequest, res: Response): Promise<void>
       return;
     }
     const member = await db.findById('users', String(userId));
-    if (!member || member.familyId !== req.user?.familyId || member.isActive === false || member.membershipStatus !== 'Approved') {
+    if (!member || member.familyId !== req.user?.familyId || member.isActive === false || !hasApprovedMembership(member)) {
       res.status(404).json({ message: 'Approved member of your family not found' });
       return;
     }

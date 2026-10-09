@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { db } from '../config/storage';
+import { hasApprovedMembership } from '../services/membership';
 
 export interface AuthRequest extends Request {
   user?: {
@@ -38,7 +39,7 @@ export const authMiddleware = async (req: AuthRequest, res: Response, next: Next
       res.status(403).json({ code: 'MEMBERSHIP_REJECTED', message: user.membershipRejectionReason || 'Your registration was rejected' });
       return;
     }
-    if (user.membershipStatus !== 'Approved') {
+    if (!hasApprovedMembership(user)) {
       res.status(403).json({ message: 'Account approval is required to access this service' });
       return;
     }

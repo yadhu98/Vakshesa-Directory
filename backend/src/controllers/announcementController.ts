@@ -2,6 +2,7 @@ import { Response } from 'express';
 import { AuthRequest } from '../middleware/auth';
 import { db } from '../config/storage';
 import https from 'https';
+import { hasApprovedMembership } from '../services/membership';
 
 type LinkPreview = { title: string; description: string; thumbnailUrl?: string };
 
@@ -55,7 +56,7 @@ const list = async (req: AuthRequest, res: Response): Promise<void> => {
   items.sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime());
   const enriched = await Promise.all(items.map(async item => {
     const tags = await Promise.all((item.taggedUserIds || []).map((id: string) => db.findById('users', id)));
-    return { ...item, linkPreview: item.linkPreview || await getYoutubePreview(item.url), taggedUsers: tags.filter((u: any) => u && u.familyId === req.user?.familyId && u.isActive !== false && u.membershipStatus === 'Approved').map((u: any) => ({ _id: u._id, firstName: u.firstName, lastName: u.lastName })) };
+    return { ...item, linkPreview: item.linkPreview || await getYoutubePreview(item.url), taggedUsers: tags.filter((u: any) => u && u.familyId === req.user?.familyId && u.isActive !== false && hasApprovedMembership(u)).map((u: any) => ({ _id: u._id, firstName: u.firstName, lastName: u.lastName })) };
   }));
   res.json({ announcements: enriched });
 };
@@ -95,7 +96,7 @@ const save = async (req: AuthRequest, res: Response, existing?: any): Promise<vo
   try { taggedUserIds = Array.from(new Set<string>((JSON.parse(req.body.taggedUserIds || '[]') as unknown[]).map(id => String(id)))); } catch { res.status(400).json({ message: 'Invalid tagged users' }); return; }
   for (const id of taggedUserIds) {
     const user = await db.findById('users', id);
-    if (!user || user.familyId !== req.user?.familyId || user.isActive === false || user.membershipStatus !== 'Approved') { res.status(400).json({ message: 'Tagged users must be active members of your family group' }); return; }
+    if (!user || user.familyId !== req.user?.familyId || user.isActive === false || !hasApprovedMembership(user)) { res.status(400).json({ message: 'Tagged users must be active members of your family group' }); return; }
   }
   const author = await db.findById('users', String(req.user?.id));
   const linkPreview = await getYoutubePreview(url);

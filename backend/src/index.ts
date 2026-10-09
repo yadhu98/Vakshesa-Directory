@@ -258,7 +258,7 @@ const migrateLegacyAccessDefaults = async () => {
   const users = await db.find('users', {});
   for (const user of users) {
     const updates: Record<string, any> = {};
-    if (!user.membershipStatus) updates.membershipStatus = 'Approved';
+    if (user.membershipStatus == null) updates.membershipStatus = 'Approved';
     if (!user.privacySettings) updates.privacySettings = { ...DEFAULT_PRIVACY_SETTINGS };
     if (Object.keys(updates).length) await db.updateOne('users', { _id: user._id }, updates);
   }

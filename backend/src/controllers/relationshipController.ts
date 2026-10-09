@@ -5,8 +5,9 @@ import { AuthRequest } from '../middleware/auth';
 import { sanitizeUserForViewer } from '../services/profilePrivacy';
 import { formatRelationship, hasRelationshipPair, inferRelationship, reciprocalType, RelationshipLink } from '../services/familyRelationships';
 import { recordAuditEvent } from '../services/auditService';
+import { hasApprovedMembership } from '../services/membership';
 
-const approved = (user: any, familyId: string) => !!user && String(user.familyId) === String(familyId) && user.isActive !== false && user.membershipStatus === 'Approved' && !user.isSuperUser;
+const approved = (user: any, familyId: string) => !!user && String(user.familyId) === String(familyId) && user.isActive !== false && hasApprovedMembership(user) && !user.isSuperUser;
 
 const familyGraph = async (familyId: string) => {
   const users = (await db.find('users', { familyId })).filter(user => approved(user, familyId));

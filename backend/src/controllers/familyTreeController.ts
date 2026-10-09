@@ -2,8 +2,9 @@ import { Response } from 'express';
 import { db } from '../config/storage';
 import { AuthRequest } from '../middleware/auth';
 import { sanitizeUserForViewer } from '../services/profilePrivacy';
+import { hasApprovedMembership } from '../services/membership';
 
-const isApprovedMember = (user: any, familyId?: string) => !!user && user.familyId === familyId && user.isActive !== false && user.membershipStatus === 'Approved';
+const isApprovedMember = (user: any, familyId?: string) => !!user && user.familyId === familyId && user.isActive !== false && hasApprovedMembership(user);
 
 export const getFamilyTree = async (req: AuthRequest, res: Response) => {
   try {
@@ -11,7 +12,7 @@ export const getFamilyTree = async (req: AuthRequest, res: Response) => {
     if (familyId !== req.user?.familyId) return res.status(403).json({ message: 'You can only access your own family directory' });
     const house = typeof req.query.house === 'string' ? req.query.house : undefined;
     const users = (await db.find('users', { familyId }))
-      .filter((user: any) => !user.isSuperUser && user.isActive !== false && user.membershipStatus === 'Approved' && (!house || user.house === house))
+      .filter((user: any) => !user.isSuperUser && user.isActive !== false && hasApprovedMembership(user) && (!house || user.house === house))
       .map((user: any) => sanitizeUserForViewer(user, String(req.user?.id)));
     res.json({ familyId, house: house || 'all', totalMembers: users.length, totalGenerations: users.length ? Math.max(...users.map((user: any) => user.generation || 1)) : 0, tree: buildTreeStructure(users) });
   } catch (error: any) {
@@ -92,7 +93,7 @@ export const getGenerationMembers = async (req: AuthRequest, res: Response) => {
     const { familyId, generation } = req.params;
     if (familyId !== req.user?.familyId) return res.status(403).json({ message: 'You can only access your own family directory' });
     const members = (await db.find('users', { familyId, generation: parseInt(generation, 10) }))
-      .filter((user: any) => user.isActive !== false && user.membershipStatus === 'Approved')
+      .filter((user: any) => user.isActive !== false && hasApprovedMembership(user))
       .map((user: any) => sanitizeUserForViewer(user, String(req.user?.id)));
     res.json({ generation: parseInt(generation, 10), totalMembers: members.length, members });
   } catch (error: any) {

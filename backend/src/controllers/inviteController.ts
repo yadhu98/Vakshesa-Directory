@@ -3,6 +3,7 @@ import { db } from '../config/storage';
 import { AuthRequest } from '../middleware/auth';
 import crypto from 'crypto';
 import { recordAuditEvent } from '../services/auditService';
+import { hasApprovedMembership } from '../services/membership';
 
 const frontendOrigin = (req: AuthRequest): string => {
   if (process.env.FRONTEND_URL) return process.env.FRONTEND_URL.replace(/\/$/, '');
@@ -82,7 +83,7 @@ export const validateInviteToken = async (req: AuthRequest, res: Response): Prom
       return;
     }
     const inviter = await db.findById('users', String(invite.createdBy));
-    if (!inviter || inviter.isActive === false || inviter.membershipStatus !== 'Approved') {
+    if (!inviter || inviter.isActive === false || !hasApprovedMembership(inviter)) {
       res.status(400).json({ message: 'This invitation is no longer valid', valid: false });
       return;
     }

@@ -1,6 +1,7 @@
 import { WebSocketServer, WebSocket } from 'ws';
 import { Server } from 'http';
 import jwt from 'jsonwebtoken';
+import { hasApprovedMembership } from './membership';
 
 interface AuthenticatedWebSocket extends WebSocket {
   userId?: string;
@@ -46,7 +47,7 @@ class WebSocketService {
         const decoded = jwt.verify(token, jwtSecret) as any;
         const { db } = await import('../config/storage');
         const user = await db.findById('users', String(decoded.id));
-        if (!user || user.isActive === false || user.membershipStatus !== 'Approved') {
+        if (!user || user.isActive === false || !hasApprovedMembership(user)) {
           ws.close(1008, 'Approved account required');
           return;
         }

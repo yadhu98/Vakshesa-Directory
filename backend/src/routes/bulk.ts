@@ -3,6 +3,7 @@ import { authMiddleware, adminMiddleware, AuthRequest } from '../middleware/auth
 import { sanitizeUserForViewer } from '../services/profilePrivacy';
 import { createUser } from '../services/userService';
 import { db } from '../config/storage';
+import { hasApprovedMembership } from '../services/membership';
 
 const router = Router();
 
@@ -172,7 +173,7 @@ router.get('/users', authMiddleware, async (req: AuthRequest, res) => {
   try {
     const { role } = req.query;
     let users = await db.find('users', { familyId: req.user?.familyId });
-    users = users.filter((user: any) => user.isActive !== false && user.membershipStatus === 'Approved');
+    users = users.filter((user: any) => user.isActive !== false && hasApprovedMembership(user));
     
     if (role) users = users.filter(u => u.role === role);
     const filtered = users.map(u => sanitizeUserForViewer(u, String(req.user?.id)));
@@ -193,13 +194,13 @@ router.post('/link-relationships', authMiddleware, adminMiddleware, async (req: 
       return res.status(400).json({ message: 'userId is required' });
     }
     const member = await db.findById('users', userId);
-    if (!member || member.familyId !== req.user?.familyId || member.membershipStatus !== 'Approved') {
+    if (!member || member.familyId !== req.user?.familyId || !hasApprovedMembership(member)) {
       return res.status(404).json({ message: 'Approved family member not found' });
     }
 
     for (const relatedId of [fatherId, motherId, spouseId].filter(Boolean)) {
       const related = await db.findById('users', String(relatedId));
-      if (!related || related.familyId !== req.user?.familyId || related.membershipStatus !== 'Approved' || related.isActive === false) {
+      if (!related || related.familyId !== req.user?.familyId || !hasApprovedMembership(related) || related.isActive === false) {
         return res.status(400).json({ message: 'Relationships must refer to approved members of your family' });
       }
     }
@@ -335,7 +336,7 @@ router.delete('/delete-all-users', authMiddleware, adminMiddleware, async (req: 
     }
 
     const allUsers = await db.find('users', { familyId: req.user?.familyId });
-    const admins = allUsers.filter((user: any) => user.role === 'admin' && user.membershipStatus === 'Approved' && user.isActive !== false);
+    const admins = allUsers.filter((user: any) => user.role === 'admin' && hasApprovedMembership(user) && user.isActive !== false);
     const usersToDelete = allUsers.filter((user: any) => user.role !== 'admin' && !user.isSuperUser);
     const userIdsToDelete = usersToDelete.map((user: any) => String(user._id));
 

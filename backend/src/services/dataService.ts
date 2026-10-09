@@ -1,5 +1,6 @@
 import { db } from '../config/storage';
 import { sanitizeUserForViewer } from './profilePrivacy';
+import { hasApprovedMembership } from './membership';
 
 export const getUserById = async (id: string) => {
   const user = await db.findById('users', id);
@@ -49,7 +50,7 @@ export const getLeaderboard = async (limit: number = 100, familyId?: string, vie
       if (user && (
         user.familyId !== familyId ||
         user.isActive === false ||
-        user.membershipStatus !== 'Approved'
+        !hasApprovedMembership(user)
       )) continue;
       pointsByUser[point.userId] = {
         _id: point.userId,
@@ -82,7 +83,7 @@ export const searchUsers = async (query: string, limit: number = 20, familyId?: 
   let filtered = allUsers.filter((u) =>
     u.familyId === familyId &&
     u.isActive !== false &&
-    u.membershipStatus === 'Approved'
+    hasApprovedMembership(u)
   );
   if (!query || query.trim() === '') {
     // Keep only approved members from the caller's family.
